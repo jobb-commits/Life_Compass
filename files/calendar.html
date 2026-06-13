@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport"="width=device-width, initial-scale=1.0">
+    <title>Life Audit System - Calendar View</title>
+    
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Calendar View</h1>
+            <p class="user-greeting" id="userGreeting">Your goals timeline</p>
+        </div>
+
+        <!-- Calendar -->
+        <div class="calendar-section">
+            <div class="calendar-header">
+                <h2 class="calendar-title">Goal Calendar</h2>
+                <div class="calendar-nav">
+                    <button class="nav-btn" onclick="changeMonth(-1)">← Previous</button>
+                    <div class="current-month" id="currentMonth">Loading...</div>
+                    <button class="nav-btn" onclick="changeMonth(1)">Next →</button>
+                </div>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Day headers -->
+                <div class="calendar-day-header">Sun</div>
+                <div class="calendar-day-header">Mon</div>
+                <div class="calendar-day-header">Tue</div>
+                <div class="calendar-day-header">Wed</div>
+                <div class="calendar-day-header">Thu</div>
+                <div class="calendar-day-header">Fri</div>
+                <div class="calendar-day-header">Sat</div>
+                <!-- Days will be populated by JScript hopeefully, will test later -->
+            </div>
+        </div>
+
+        <!-- Upcoming Goals -->
+        <div class="upcoming-section">
+            <h2>Upcoming Deadlines</h2>
+            <div class="upcoming-list" id="upcomingList">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let goals = [];
+        let currentDate = new Date();
+
+        function loadGoals() {
+            const savedGoals = localStorage.getItem('lifeAuditGoals');
+            goals = savedGoals ? JSON.parse(savedGoals) : [];
+            
+            // This part should filter only goals with deadlines
+            goals = goals.filter(g => g.deadline);
+        }
+
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Update header
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('currentMonth').textContent = `${monthNames[month]} ${year}`;
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+            
+            const grid = document.getElementById('calendarGrid');
+            
+            // Clear existing days (keep headers)
+            while (grid.children.length > 7) {
+                grid.removeChild(grid.lastChild);
+            }
+            
+            const today = new Date();
+            
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                const dayDiv = createDayElement(day, month - 1, year, true);
+                grid.appendChild(dayDiv);
+            }
+            
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = day === today.getDate() && 
+                               month === today.getMonth() && 
+                               year === today.getFullYear();
+                const dayDiv = createDayElement(day, month, year, false, isToday);
+                grid.appendChild(dayDiv);
+            }
+            
+            // Next month days
+            const totalCells = grid.children.length - 7;
+            const remainingCells = 42 - totalCells;
+            for (let day = 1; day <= remainingCells; day++) {
+                const dayDiv = createDayElement(day, month + 1, year, true);
+                grid.appendChild(dayDiv);
+            }
+        }
+
+        // FUNCTION: Create day element
+        function createDayElement(day, month, year, otherMonth = false, isToday = false) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = `calendar-day ${otherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`;
+            
+            const dayDate = new Date(year, month, day);
+            const dateStr = dayDate.toISOString().split('T')[0];
+            
+            // Find goals for this date
+            const dayGoals = goals.filter(g => {
+                if (!g.deadline) return false;
+                const goalDate = g.deadline.split('T')[0];
+                return goalDate === dateStr;
+            });
+            
+            // Check if any goals are overdue
+            const hasOverdue = dayGoals.some(g => {
+                const deadline = new Date(g.deadline);
+                return !g.completed && deadline < new Date();
+            });
+            
+            dayDiv.innerHTML = `
+                <div class="day-number">${day}</div>
+                <div class="day-goals">
+                    ${dayGoals.map(goal => `
+                        <div class="calendar-goal ${goal.category} ${hasOverdue && !goal.completed ? 'overdue' : ''}" 
+                             title="${goal.title}">${goal.completed ? ' ' : ''}${goal.title}</div>
+                    `).join('')}
+                </div>
+            `;
+            
+            return dayDiv;
+        }
+
+        // FUNCTION: Render upcoming goals
+        function renderUpcoming() {
+            const list = document.getElementById('upcomingList');
+            list.innerHTML = '';
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Sort goals by deadline
+            const sortedGoals = [...goals]
+                .filter(g => !g.completed)
+                .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+            
+            if (sortedGoals.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">No upcoming deadlines</div>';
+                return;
+            }
+            
+            sortedGoals.forEach(goal => {
+                const deadline = new Date(goal.deadline);
+                const daysUntil = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+                
+                let statusClass = '';
+                let statusText = '';
+                let itemClass = '';
+                
+                if (daysUntil < 0) {
+                    statusClass = 'status-overdue';
+                    statusText = `Overdue by ${Math.abs(daysUntil)} days`;
+                    itemClass = 'overdue';
+                } else if (daysUntil === 0) {
+                    statusClass = 'status-today';
+                    statusText = 'Due TODAY!';
+                    itemClass = 'due-soon';
+                } else if (daysUntil <= 7) {
+                    statusClass = 'status-soon';
+                    statusText = `Due in ${daysUntil} days`;
+                    itemClass = 'due-soon';
+                } else {
+                    statusClass = 'status-soon';
+                    statusText = deadline.toLocaleDateString();
+                }
+                
+                const item = document.createElement('div');
+                item.className = `upcoming-goal ${itemClass}`;
+                item.innerHTML = `
+                    <div class="upcoming-goal-content">
+                        <div class="upcoming-goal-title">${goal.title}</div>
+                        <div class="upcoming-goal-meta">${getCategoryName(goal.category)}</div>
+                    </div>
+                    <div class="upcoming-goal-status ${statusClass}">${statusText}</div>
+                `;
+                
+                list.appendChild(item);
+            });
+        }
+
+    
+        // Get category name
+        function getCategoryName(category) {
+            const names = {
+                career: 'Career',
+                health: 'Health',
+                finance: 'Finance',
+                relationships: 'Relationships',
+                hobbies: 'Hobbies'
+            };
+            return names[category] || category;
+        }
+
+        
+        // INITIALIZE
+        window.addEventListener('load', function() {
+            loadGoals();
+            renderCalendar();
+            renderUpcoming();
+        });
+    </script>
+    <script src="nav.js"></script>
+</body>
+</html>

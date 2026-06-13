@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Audit System - Achievements</title>
+    
+  <style>
+    /* ── Achievement grid — wider cards for art ── */
+    .achievements-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .achievement-card {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1.5px solid var(--gray-200);
+      background: var(--white);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .achievement-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .achievement-card.earned {
+      border-color: var(--black);
+    }
+
+    /* ── Art panel ── */
+    .achievement-art {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      background: var(--gray-100);
+    }
+
+    .achievement-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter 0.6s ease, transform 0.4s ease;
+    }
+
+    /* Locked = greyscale, slightly zoomed out */
+    .achievement-card.locked .achievement-art img {
+      filter: grayscale(100%) brightness(0.6);
+      transform: scale(1.0);
+    }
+
+    /* Earned = full colour, gentle zoom */
+    .achievement-card.earned .achievement-art img {
+      filter: none;
+      transform: scale(1.04);
+    }
+
+    /* Hover on locked previews the colour */
+    .achievement-card.locked:hover .achievement-art img {
+      filter: grayscale(40%) brightness(0.8);
+    }
+
+    /* Lock overlay on unearned art */
+    .art-lock-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.18);
+      transition: opacity 0.3s;
+    }
+
+    .achievement-card.locked:hover .art-lock-overlay {
+      opacity: 0;
+    }
+
+    .lock-icon {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: rgba(255,255,255,0.7);
+      letter-spacing: 0.05em;
+    }
+
+    /* XP badge on earned art */
+    .art-earned-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--black);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 2px;
+    }
+
+    /* Placeholder for cards with no art yet */
+    .achievement-art--placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--gray-100);
+    }
+
+    .placeholder-mark {
+      font-family: 'DM Serif Display', serif;
+      font-size: 32px;
+      color: var(--gray-300);
+    }
+
+    /* ── Card body ── */
+    .achievement-body {
+      padding: 14px 16px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .achievement-name {
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.01em;
+      color: var(--black);
+    }
+
+    .achievement-card.locked .achievement-name {
+      color: var(--gray-500);
+    }
+
+    .achievement-desc {
+      font-size: 12px;
+      color: var(--gray-500);
+      line-height: 1.45;
+    }
+
+    .achievement-meta {
+      margin-top: auto;
+      padding-top: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .earned-meta { color: var(--black); }
+    .locked-meta { color: var(--gray-300); }
+
+    /* ── Unlock shimmer animation ── */
+    @keyframes colourUnlock {
+      0%   { filter: grayscale(100%) brightness(0.6); }
+      40%  { filter: grayscale(0%)   brightness(1.15); }
+      100% { filter: none; }
+    }
+
+    .achievement-card.just-unlocked .achievement-art img {
+      animation: colourUnlock 1.2s ease forwards;
+    }
+  </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Achievements & Progress</h1>
+            <p class="user-greeting" id="userGreeting">Level up your life!</p>
+        </div>
+
+        <!-- Level Progress -->
+        <div class="level-section">
+            <div class="level-badge" id="levelBadge">
+                
+            </div>
+            <div class="level-info">
+                <h2>Level <span id="currentLevel">1</span></h2>
+                <div class="level-title" id="levelTitle">Beginner</div>
+            </div>
+            <div class="xp-bar-container">
+                <div class="xp-info">
+                    <span id="currentXP">0 XP</span>
+                    <span id="nextLevelXP">/ 100 XP to next level</span>
+                </div>
+                <div class="xp-bar">
+                    <div class="xp-fill" id="xpFill" style="width: 0%">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="totalXP">0</div>
+                <div class="stat-label">Total XP</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="badgesEarned">0</div>
+                <div class="stat-label">Badges Earned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="goalsCompleted">0</div>
+                <div class="stat-label">Goals Completed</div>
+            </div>
+        </div>
+
+        <!-- streak counter-->
+        <div class="streak-section">
+            <h2>Daily Streak</h2>
+            <div class="streak-display">
+                <div class="streak-info">
+                    <div class="streak-number" id="streakDays">0</div>
+                    <div class="streak-label">Days in a row!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Achievements -->
+        <div class="achievements-section">
+            <h2>Achievements</h2>
+            <div class="achievements-grid" id="achievementsGrid">
+                <!-- populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        // list of all attainable achievements
+        
+        const ACHIEVEMENTS = [
+            {
+                id: 'first_goal',
+                name: 'The Beginning',
+                description: 'Create your first goal',
+                requirement: (stats) => stats.totalGoals >= 1,
+                xp: 100
+            },
+            {
+                id: 'goal_getter',
+                name: 'Rising Star',
+                description: 'Create 5 goals',
+                requirement: (stats) => stats.totalGoals >= 5,
+                xp: 500
+            },
+            {
+                id: 'ambitious',
+                name: 'Limit Breaker',
+                description: 'Create 10 goals',
+                requirement: (stats) => stats.totalGoals >= 10,
+                xp: 500
+            },
+            {
+                id: 'first_win',
+                name: 'Breakthrough',
+                description: 'Complete your first goal',
+                requirement: (stats) => stats.completedGoals >= 1,
+                xp: 100
+            },
+            {
+                id: 'speed_runner',
+                name: 'Speed Runner',
+                description: 'Complete 3 goals in one day',
+                requirement: (stats) => stats.goalsInOneDay >= 3,
+                xp: 400
+           },
+            {
+                id: 'on_fire',
+                name: 'On Fire!',
+                description: 'Complete 5 goals',
+                requirement: (stats) => stats.completedGoals >= 5,
+                xp: 500
+            },
+            {
+                id: 'unstoppable',
+                name: 'Relentless',
+                description: 'Complete 10 goals',
+                requirement: (stats) => stats.completedGoals >= 10,
+                xp: 1000
+            },
+            {
+                id: 'completionist',
+                name: 'Completionist',
+                description: 'Complete all goals in one category',
+                requirement: (stats) => stats.categoryCompleted,
+                xp: 400
+            },
+            {
+                id: 'legend',
+                name: 'Legend',
+                description: 'Complete 100 total goals',
+                requirement: (stats) => stats.totalCompleted >= 100,
+                xp: 5000
+          },
+            {
+                id: 'well_rounded',
+                name: 'Master of Balance',
+                description: 'Have goals in all 5 categories',
+                requirement: (stats) => stats.categoriesUsed >= 5,
+                xp: 500
+            },
+            {
+                id: 'week_warrior',
+                name: 'Weekend Warrior',
+                description: 'Maintain a 7-day streak',
+                requirement: (stats) => stats.streak >= 7,
+                xp: 700
+            },
+            {
+                id: 'dedication',
+                name: 'Streak Guardian',
+                description: 'Maintain a 30-day streak',
+                requirement: (stats) => stats.streak >= 30,
+                xp: 3000
+            },
+            {
+                id: 'marathon',
+                name: 'Marathon Runner',
+                description: 'Maintain a 60-day streak',
+                requirement: (stats) => stats.streak >= 60,
+                xp: 1500
+            },
+            {
+                id: 'centurion',
+                name: 'Centurion',
+                description: 'Maintain a 100-day streak',
+                requirement: (stats) => stats.streak >= 100,
+                xp: 3000
+            },
+            {
+                id: 'comeback',
+                name: 'Comeback King',
+                description: 'Restart your streak after missing a day',
+                requirement: (stats) => stats.comeback >= 1,
+                xp: 300
+            },
+            {
+                id: 'never_miss_twice',
+                name: 'Never Miss Twice',
+                description: 'Miss one day, then complete goals the next day',
+                requirement: (stats) => stats.recoveredNextDay >= 1,
+                xp: 500
+            },
+            {
+               id: 'phoenix',
+               name: 'Phoenix',
+               description: 'Recover from 3 broken streaks',
+               requirement: (stats) => stats.recoveryCount >= 3,
+               xp: 803
+            },
+            {
+              id: 'ghost',
+              name: '???',
+              description: 'Hidden Achievement',
+              requirement: (stats) => stats.midnightCompletion >= 1,
+              xp: 777
+            }
+        ];
+
+        
+        // LEVEL SYSTEM. MAY ADD MORE LEVELS IF TIME ALLOWS
+        
+        const LEVELS = [
+            { level: 1, title: 'Beginner', xpRequired: 0 },
+            { level: 2, title: 'Novice', xpRequired: 1000 },
+            { level: 3, title: 'Apprentice', xpRequired: 3000 },
+            { level: 4, title: 'Intermediate', xpRequired: 6000 },
+            { level: 5, title: 'Advanced', xpRequired: 10000 },
+            { level: 6, title: 'Expert', xpRequired: 15000 },
+            { level: 7, title: 'Master', xpRequired: 22000 },
+            { level: 8, title: 'Champion', xpRequired: 30000 },
+            { level: 9, title: 'Legend', xpRequired: 40000 },
+            { level: 10, title: 'Grandmaster', xpRequired: 55000}
+        ];
+
+        let goals = [];
+        let gamificationData = {
+            totalXP: 0,
+            unlockedAchievements: [],
+            streak: 0,
+            lastActiveDate: null
+        };
+
+        
+        // FUNCTION 1: Load all data
+        
+        function loadData() {
+            // Load profile data
+            const savedProfile = localStorage.getItem('lifeAuditProfile');
+            if (savedProfile) {
+                const profile = JSON.parse(savedProfile);
+                document.getElementById('userGreeting').textContent = 
+                    `${profile.name}'s Achievements`;
+            }
+
+            // Load goals
+            const savedGoals = localStorage.getItem('lifeAuditGoals');
+            goals = savedGoals ? JSON.parse(savedGoals) : [];
+
+            // Load gamification data
+            const savedGamification = localStorage.getItem('lifeAuditGamification');
+            if (savedGamification) {
+                gamificationData = JSON.parse(savedGamification);
+            }
+
+            // Update streak
+            updateStreak();
+
+            // Calculate stats, check achievements
+            const stats = calculateStats();
+            checkAchievements(stats);
+
+            // Update display
+            updateLevelDisplay();
+            displayAchievements(stats);
+            updateStats(stats);
+        }
+
+        
+        // FUNCTION 2: Calculate user statistics
+        
+        function calculateStats() {
+            const totalGoals = goals.length;
+            const completedGoals = goals.filter(g => g.completed).length;
+            
+            // Count unique categories used
+            const categoriesUsed = new Set(goals.map(g => g.category)).size;
+            
+            // Check if any category is 100% complete
+            const categories = ['career', 'health', 'finance', 'relationships', 'hobbies'];
+            let categoryCompleted = false;
+            
+            categories.forEach(cat => {
+                const catGoals = goals.filter(g => g.category === cat);
+                if (catGoals.length > 0) {
+                    const catCompleted = catGoals.every(g => g.completed);
+                    if (catCompleted) categoryCompleted = true;
+                }
+            });
+
+            // Build a Set of all unique days that had at least one completion
+            // toDateString() gives "Mon Jan 01 2025" — same day = same string
+            const completionDaySet = new Set(
+                goals
+                    .filter(g => g.completed && g.completedAt)
+                    .map(g => new Date(g.completedAt).toDateString())
+            );
+
+            // "Never Miss Twice" logic:
+            // For each day that HAS a completion, check if the day before it
+            // had NO completion but the day before THAT did.
+            // That pattern = missed one day, then got back on it the next.
+            let recoveredNextDay = 0;
+            completionDaySet.forEach(dateStr => {
+                const date      = new Date(dateStr);
+
+                const prevDay   = new Date(date);
+                prevDay.setDate(prevDay.getDate() - 1);
+
+                const twoDaysAgo = new Date(date);
+                twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+                const missedYesterday    = !completionDaySet.has(prevDay.toDateString());
+                const workedDayBefore    =  completionDaySet.has(twoDaysAgo.toDateString());
+
+                if (missedYesterday && workedDayBefore) recoveredNextDay++;
+            });
+
+            return {
+                totalGoals,
+                completedGoals,
+                categoriesUsed,
+                categoryCompleted,
+                streak: gamificationData.streak,
+                recoveredNextDay
+            };
+        }
+
+        
+        // FUNCTION 3: Check and unlock achievements
+        
+        function checkAchievements(stats) {
+            let newXP = 0;
+
+            ACHIEVEMENTS.forEach(achievement => {
+                // Check if achievement is already unlocked
+                const alreadyUnlocked = gamificationData.unlockedAchievements.some(
+                    a => a.id === achievement.id
+                );
+
+                // If not unlocked and requirement met, unlock achievement
+                if (!alreadyUnlocked && achievement.requirement(stats)) {
+                    gamificationData.unlockedAchievements.push({
+                        id: achievement.id,
+                        unlockedAt: new Date().toISOString()
+                    });
+                    
+                    newXP += achievement.xp;
+                    
+                    // Show notification
+                    showAchievementNotification(achievement);
+
+                    // Trigger colour-unlock shimmer after re-render
+                    setTimeout(() => {
+                        const cards = document.querySelectorAll('.achievement-card.earned');
+                        cards.forEach(card => {
+                            const nameEl = card.querySelector('.achievement-name');
+                            if (nameEl && nameEl.textContent === achievement.name) {
+                                card.classList.add('just-unlocked');
+                                setTimeout(() => card.classList.remove('just-unlocked'), 1400);
+                            }
+                        });
+                    }, 50);
+                }
+            });
+
+            // Add new XP
+            if (newXP > 0) {
+                gamificationData.totalXP += newXP;
+                saveGamificationData();
+            }
+        }
+
+        
+        // FUNCTION 4: Update streak
+        
+        function updateStreak() {
+            const today = new Date().toDateString();
+            const lastActive = gamificationData.lastActiveDate;
+
+            if (!lastActive) {
+                // First time
+                gamificationData.streak = 1;
+                gamificationData.lastActiveDate = today;
+            } else if (lastActive !== today) {
+                const lastDate = new Date(lastActive);
+                const todayDate = new Date(today);
+                const diffTime = todayDate - lastDate;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    // Consecutive day!
+                    gamificationData.streak++;
+                } else if (diffDays > 1) {
+                    // Streak broken
+                    gamificationData.streak = 1;
+                }
+
+                gamificationData.lastActiveDate = today;
+            }
+
+            saveGamificationData();
+        }
+
+        
+        // FUNCTION 5: Calculate current level
+        
+        function getCurrentLevel() {
+            const xp = gamificationData.totalXP;
+            
+            for (let i = LEVELS.length - 1; i >= 0; i--) {
+                if (xp >= LEVELS[i].xpRequired) {
+                    return LEVELS[i];
+                }
+            }
+            
+            return LEVELS[0];
+        }
+
+        
+        // FUNCTION 6: Update level display
+        
+        function updateLevelDisplay() {
+            const currentLevel = getCurrentLevel();
+            const nextLevelIndex = LEVELS.findIndex(l => l.level === currentLevel.level) + 1;
+            const nextLevel = nextLevelIndex < LEVELS.length ? LEVELS[nextLevelIndex] : null;
+            document.getElementById('currentLevel').textContent = currentLevel.level;
+            document.getElementById('levelTitle').textContent = currentLevel.title;
+
+            // XP Progress
+            const currentXP = gamificationData.totalXP;
+            const levelBaseXP = currentLevel.xpRequired;
+            
+            if (nextLevel) {
+                const xpInLevel = currentXP - levelBaseXP;
+                const xpNeeded = nextLevel.xpRequired - levelBaseXP;
+                const percentage = Math.min((xpInLevel / xpNeeded) * 100, 100);
+
+                document.getElementById('currentXP').textContent = `${xpInLevel} XP`;
+                document.getElementById('nextLevelXP').textContent = `/ ${xpNeeded} XP to next level`;
+                document.getElementById('xpFill').style.width = percentage + '%';
+                document.getElementById('xpFill').textContent = Math.round(percentage) + '%';
+            } else {
+                document.getElementById('currentXP').textContent = `${currentXP} XP`;
+                document.getElementById('nextLevelXP').textContent = '/ MAX LEVEL!';
+                document.getElementById('xpFill').style.width = '100%';
+                document.getElementById('xpFill').textContent = 'MAX';
+            }
+        }
+
+        
+        const ACHIEVEMENT_ART = {
+            first_goal:       'the_beginning.jpg',
+            goal_getter:      'rising_star.jpg',
+            ambitious:        'limit_breaker.jpeg',
+            first_win:        'breakthrough.jpg',
+            speed_runner:     'speed_runner.jpg',
+            on_fire:          'on_fire.jpg',
+            unstoppable:      'relentless.jpg',
+            completionist:    'completionist.jpg',
+            legend:           'legend.jpg',
+            well_rounded:     'master_of_balance.jpg',
+            week_warrior:     'weekend_warrior.jpg',
+            dedication:       'streak_guardian.jpg',
+            marathon:         'marathon_runner.jpg',
+            centurion:        'centurion.jpg',
+            comeback:         'comeback_king.jpg',
+            never_miss_twice: 'never_miss_twice.jpg',
+            phoenix:          'phoenix.jpg',
+            ghost:            'ghost.jpg',
+        };
+
+        // FUNCTION 7: Display achievements
+        
+        function displayAchievements(stats) {
+            const grid = document.getElementById('achievementsGrid');
+            grid.innerHTML = '';
+
+            ACHIEVEMENTS.forEach(achievement => {
+                const unlocked = gamificationData.unlockedAchievements.find(
+                    a => a.id === achievement.id
+                );
+
+                const card = document.createElement('div');
+                const stateClass = unlocked ? 'earned' : 'locked';
+                card.className = `achievement-card ${stateClass}`;
+
+                const artFile = ACHIEVEMENT_ART[achievement.id];
+                const artHTML = artFile
+                    ? `<div class="achievement-art">
+                           <img src="${artFile}" alt="${achievement.name}">
+                           ${!unlocked ? '<div class="art-lock-overlay"><div class="lock-icon">—</div></div>' : ''}
+                           ${unlocked ? '<div class="art-earned-badge">+' + achievement.xp + ' XP</div>' : ''}
+                       </div>`
+                    : `<div class="achievement-art achievement-art--placeholder">
+                           <div class="placeholder-mark">—</div>
+                       </div>`;
+
+                let content = artHTML + `
+                    <div class="achievement-body">
+                        <div class="achievement-name">${achievement.name}</div>
+                        <div class="achievement-desc">${achievement.description}</div>
+                        ${unlocked
+                            ? `<div class="achievement-meta earned-meta">
+                                   Unlocked ${new Date(unlocked.unlockedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}
+                               </div>`
+                            : `<div class="achievement-meta locked-meta">Earn +${achievement.xp} XP</div>`
+                        }
+                    </div>
+                `;
+
+                card.innerHTML = content;
+                grid.appendChild(card);
+            });
+        }
+
+        
+        // FUNCTION 8: Update stats display
+        
+        function updateStats(stats) {
+            document.getElementById('totalXP').textContent = gamificationData.totalXP;
+            document.getElementById('badgesEarned').textContent = 
+                gamificationData.unlockedAchievements.length;
+            document.getElementById('goalsCompleted').textContent = stats.completedGoals;
+            document.getElementById('streakDays').textContent = gamificationData.streak;
+        }
+
+        
+        // FUNCTION 9: Display achievement notification
+        
+        function showAchievementNotification(achievement) {
+            // Simple alert for now (will try to make it fancier if I get a better idea!)
+            alert(`Achievement Unlocked!!!!\n\n${achievement.icon} ${achievement.name}\n${achievement.description}\n\n+${achievement.xp} XP earned!`);
+        }
+
+        
+        // FUNCTION 10: Save gamification data
+        
+        function saveGamificationData() {
+            localStorage.setItem('lifeAuditGamification', JSON.stringify(gamificationData));
+        }
+
+        
+        // INITIALIZE
+        
+        window.addEventListener('load', function() {
+            loadData();
+        });
+    </script>
+    <script src="nav.js"></script>
+</body>
+</html>
