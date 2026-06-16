@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Audit System - Recommendations</title>
+    <style>
+        .meta-icon { width: 14px; height: 14px; vertical-align: middle; display: inline-block; }
+        .category-icon i, .category-icon svg { width: 24px; height: 24px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Personalized Recommendations</h1>
+            <p class="user-greeting" id="userGreeting">Resources tailored to your goals</p>
+        </div>
+
+        <div class="insights-section">
+            <h2>AI-Powered Insights</h2>
+            <div class="insight-cards" id="insightsCards">
+                </div>
+        </div>
+
+        <div class="category-section" id="favoritesSection" style="display: none;">
+            <div class="category-header">
+                <div class="category-icon"><i data-lucide="star"></i></div>
+                <div class="category-info">
+                    <h2>My Saved Resources</h2>
+                    <div class="category-subtitle">Resources you've bookmarked for later</div>
+                </div>
+            </div>
+            <div class="resources-grid" id="favoritesGrid">
+                </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Filter by Category</h3>
+            <div class="filter-buttons" id="filterButtons">
+                <button class="filter-btn active" data-category="all">All Categories</button>
+                <button class="filter-btn" data-category="career">Career</button>
+                <button class="filter-btn" data-category="health">Health</button>
+                <button class="filter-btn" data-category="finance">Finance</button>
+                <button class="filter-btn" data-category="relationships">Relationships</button>
+                <button class="filter-btn" data-category="hobbies">Hobbies</button>
+            </div>
+        </div>
+
+        <div id="resourcesContainer">
+            </div>
+    </div>
+
+    <script>
+        
+        // Simple fallback dataset in case the AI fails to load
+        let RESOURCES = {
+            career: [
+                {
+                    type: 'book',
+                    title: 'Atomic Habits',
+                    author: 'James Clear',
+                    description: 'Tiny changes, remarkable results. Learn how to build good habits and break bad ones.',
+                    rating: 4.8,
+                    difficulty: 'Beginner',
+                    timeRequired: '4-6 hours',
+                    tags: ['productivity', 'self-improvement', 'habits'],
+                    link: 'https://jamesclear.com/atomic-habits'
+                }
+            ],
+            health: [],
+            finance: [],
+            relationships: [],
+            hobbies: []
+        };
+
+        // Core App Variables
+        let goals = [];
+        let currentFilter = 'all';
+        let userAge = 0;
+        let profile = {};
+
+        
+        //AI INTEGRATION (Via Vercel Backend)
+        async function fetchAIRecommendations() {
+            // Show loading UI
+            document.getElementById('insightsCards').innerHTML = "<div class='insight-card'><div class='insight-icon'>⏳</div><div class='insight-text'>Analyzing your profile...</div></div>";
+            document.getElementById('resourcesContainer').innerHTML = "<div class='empty-state'><div class='empty-icon'>🧠</div><div>Generating personalized resources...</div></div>";
+
+            const prompt = `
+            You are an expert life coach auditing a client.
+            User Profile: ${JSON.stringify(profile)}
+            User Goals: ${JSON.stringify(goals)}
+            
+            Based strictly on this profile and these goals, provide 3 personalized insights and 5 highly relevant recommended resources (books, courses, apps, or tools). 
+        
+            CRITICAL CONTEXT: Tailor all insights and resources specifically for a university student living in ${profile.location || 'Nairobi, Kenya'}. 
+          - For finance goals, prioritize tools that integrate with local payment methods and banks in that region.
+          - For career/tech goals, recommend local hubs, tech communities, or networking events near ${profile.location || 'Nairobi'}.
+          - For health/hobbies, suggest activities, clubs, or resources accessible in ${profile.location || 'Nairobi'}.
+          - Ensure all recommended apps or platforms are fully available and functional in that region.
+            
+            You MUST return ONLY valid JSON in this exact structure:
+            {
+                "insights": [
+                    {"icon": "💡", "text": "Insight text here"}
+                ],
+                "resources": {
+                    "career": [],
+                    "health": [],
+                    "finance": [],
+                    "relationships": [],
+                    "hobbies": []
+                }
+            }
+            Make sure to populate the arrays inside "resources" with objects that have these exact keys: type, title, author, description, rating, difficulty, timeRequired, tags (array of strings), link.
+            `;
+
+            try {
+                // Call the secure backend we are building next!
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!response.ok) throw new Error('Backend response not OK');
+
+                const data = await response.json();
+                
+                // Parse the Gemini JSON output
+                const aiResult = JSON.parse(data.candidates[0].content.parts[0].text);
+                
+                // Overwrite fallback data with AI data
+                RESOURCES = aiResult.resources;
+                
+                // Render UI
+                renderAIInsights(aiResult.insights);
+                displayResources();
+                displayFavorites(); // Re-check favorites against the new AI resources
+
+            } catch (error) {
+                console.error("AI Integration Error:", error);
+                document.getElementById('insightsCards').innerHTML = "<div class='insight-card'>Failed to load AI insights. Make sure your local Vercel dev server is running!</div>";
+                // Render the fallback resources so the page isn't totally blank
+                displayResources();
+            }
+        }
+
+        // Helper to inject the new AI insight cards into the DOM
+        function renderAIInsights(insights) {
+            const container = document.getElementById('insightsCards');
+            container.innerHTML = '';
+            insights.forEach(insight => {
+                const card = document.createElement('div');
+                card.className = 'insight-card';
+                card.innerHTML = `
+                    <div class="insight-icon">${insight.icon}</div>
+                    <div class="insight-text">${insight.text}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // FUNCTION 1: Load data
+        async function loadData() {
+            // Load profile
+            const savedProfile = localStorage.getItem('lifeAuditProfile');
+            if (savedProfile) {
+                profile = JSON.parse(savedProfile);
+                userAge = parseInt(profile.age);
+                document.getElementById('userGreeting').textContent = 
+                    `${profile.name}, here are resources matched to your goals`;
+            }
+
+            // Load goals
+            const savedGoals = localStorage.getItem('lifeAuditGoals');
+            goals = savedGoals ? JSON.parse(savedGoals) : [];
+
+            // Trigger the AI fetch 
+            await fetchAIRecommendations();
+
+            // Setup filter buttons
+            setupFilters();
+        }
+
+        // FUNCTION 2: Display saved favorites
+        function displayFavorites() {
+            const saved = localStorage.getItem('savedResources');
+            const savedArray = saved ? JSON.parse(saved) : [];
+
+            const favoritesSection = document.getElementById('favoritesSection');
+            const favoritesGrid = document.getElementById('favoritesGrid');
+
+            if (savedArray.length === 0) {
+                favoritesSection.style.display = 'none';
+                return;
+            }
+
+            // Show favorites section
+            favoritesSection.style.display = 'block';
+            favoritesGrid.innerHTML = '';
+
+            // Find all saved resources across all categories
+            const allResources = [];
+            Object.keys(RESOURCES).forEach(category => {
+                RESOURCES[category].forEach(resource => {
+                    if (savedArray.includes(resource.title)) {
+                        allResources.push(resource);
+                    }
+                });
+            });
+
+            // Display each saved resource
+            allResources.forEach(resource => {
+                const card = createFavoriteCard(resource);
+                favoritesGrid.appendChild(card);
+            });
+
+            // Re-render Lucide icons injected into dynamic HTML
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // FUNCTION 3: Create favorite resource card
+        function createFavoriteCard(resource) {
+            const card = document.createElement('div');
+            card.className = 'resource-card';
+
+            const tagsHTML = resource.tags.map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="resource-type ${resource.type}">${resource.type}</div>
+                <div class="resource-title">${resource.title}</div>
+                <div class="resource-author">by ${resource.author}</div>
+                <div class="resource-description">${resource.description}</div>
+                <div class="resource-meta">
+                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${resource.rating}/5</div>
+                    <div class="meta-item">${resource.difficulty}</div>
+                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${resource.timeRequired}</div>
+                </div>
+                <div class="resource-tags">${tagsHTML}</div>
+                <div class="resource-actions">
+                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? ' Learn More' : 
+ resource.type === 'course' ? ' Enroll' :
+ resource.type === 'app' ? ' Download' :
+ resource.type === 'tool' ? ' Try It' :
+ ' Visit'}</button>
+                    <button class="action-btn btn-secondary-action" onclick="removeFavorite('${resource.title}')">Remove</button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // FUNCTION 4: Remove from favorites
+        function removeFavorite(title) {
+            let saved = localStorage.getItem('savedResources');
+            let savedArray = saved ? JSON.parse(saved) : [];
+            
+            savedArray = savedArray.filter(item => item !== title);
+            localStorage.setItem('savedResources', JSON.stringify(savedArray));
+            
+            // Refresh display
+            displayFavorites();
+            
+            alert(`🗑️ "${title}" removed from favorites!`);
+        }
+
+        // FUNCTION 5: Setup filter buttons
+        function setupFilters() {
+            const buttons = document.querySelectorAll('.filter-btn');
+            
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active from all
+                    buttons.forEach(b => b.classList.remove('active'));
+                    
+                    // Add active to clicked
+                    this.classList.add('active');
+                    
+                    // Update filter
+                    currentFilter = this.dataset.category;
+                    
+                    // Refresh display
+                    displayResources();
+                });
+            });
+        }
+
+        // FUNCTION 6: Display resources
+        function displayResources() {
+            const container = document.getElementById('resourcesContainer');
+            container.innerHTML = '';
+
+            // Determine which categories to show
+            let categoriesToShow = [];
+            if (currentFilter === 'all') {
+                // Prioritize categories with goals
+                const goalCategories = [...new Set(goals.map(g => g.category))];
+                categoriesToShow = goalCategories.length > 0 
+                    ? goalCategories 
+                    : Object.keys(RESOURCES);
+            } else {
+                categoriesToShow = [currentFilter];
+            }
+
+            // Display each category
+            categoriesToShow.forEach(category => {
+                // Only create the section if there are actually resources for it
+                if (RESOURCES[category] && RESOURCES[category].length > 0) {
+                    const section = createCategorySection(category);
+                    container.appendChild(section);
+                }
+            });
+
+            // Re-render Lucide icons injected into dynamic HTML
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // FUNCTION 7: Create category section
+        function createCategorySection(category) {
+            const categoryInfo = {
+                career: { icon: 'briefcase', name: 'Career & Education', subtitle: 'Advance your professional journey' },
+                health: { icon: 'dumbbell', name: 'Health & Fitness', subtitle: 'Optimize your physical & mental well-being' },
+                finance: { icon: 'banknote', name: 'Finance', subtitle: 'Build wealth and financial security' },
+                relationships: { icon: 'heart', name: 'Relationships & Social', subtitle: 'Strengthen connections and communication' },
+                hobbies: { icon: 'palette', name: 'Skills & Hobbies', subtitle: 'Explore creativity and personal interests' }
+            };
+
+            const info = categoryInfo[category];
+            const resources = RESOURCES[category];
+
+            const section = document.createElement('div');
+            section.className = 'category-section';
+            section.innerHTML = `
+                <div class="category-header">
+                    <div class="category-icon"><i data-lucide="${info.icon}"></i></div>
+                    <div class="category-info">
+                        <h2>${info.name}</h2>
+                        <div class="category-subtitle">${info.subtitle}</div>
+                    </div>
+                </div>
+                <div class="resources-grid" id="${category}-grid"></div>
+            `;
+
+            // Add resources
+            const grid = section.querySelector(`#${category}-grid`);
+            resources.forEach(resource => {
+                grid.appendChild(createResourceCard(resource));
+            });
+
+            return section;
+        }
+
+        // FUNCTION 8: Create resource card
+        function createResourceCard(resource) {
+            const card = document.createElement('div');
+            card.className = 'resource-card';
+
+            const tagsHTML = resource.tags.map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="resource-type ${resource.type}">${resource.type}</div>
+                <div class="resource-title">${resource.title}</div>
+                <div class="resource-author">by ${resource.author}</div>
+                <div class="resource-description">${resource.description}</div>
+                <div class="resource-meta">
+                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${resource.rating}/5</div>
+                    <div class="meta-item">${resource.difficulty}</div>
+                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${resource.timeRequired}</div>
+                </div>
+                <div class="resource-tags">${tagsHTML}</div>
+                <div class="resource-actions">
+                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? 'Learn More' : 
+ resource.type === 'course' ? 'Enroll' :
+ resource.type === 'app' ? 'Download' :
+ resource.type === 'tool' ? 'Try It' :
+ ' Visit'}</button>
+                    <button class="action-btn btn-secondary-action" onclick="saveResource('${resource.title}')">Save</button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // FUNCTION 9: Open resource link
+        function openResource(link, title) {
+            if (link === '#' || !link) {
+                alert(`"${title}" - Visit your local bookstore or search online to find this resource!`);
+            } else {
+                window.open(link, '_blank');
+            }
+        }
+
+        // FUNCTION 10: Save resource to favorites
+        function saveResource(title) {
+            let saved = localStorage.getItem('savedResources');
+            let savedArray = saved ? JSON.parse(saved) : [];
+            
+            if (!savedArray.includes(title)) {
+                savedArray.push(title);
+                localStorage.setItem('savedResources', JSON.stringify(savedArray));
+                
+                // Refresh favorites display
+                displayFavorites();
+                
+                alert(`"${title}" saved to your favorites!`);
+            } else {
+                alert(`"${title}" is already in your favorites!`);
+            }
+        }
+
+        // INITIALIZE
+        window.addEventListener('load', function() {
+            loadData();
+        });
+    </script>
+      <script src="nav.js"></script>
+</body>
+</html>

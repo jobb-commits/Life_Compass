@@ -7,7 +7,6 @@
     <title>Life Audit System - Achievements</title>
     
   <style>
-    /* ── Achievement grid — wider cards for art ── */
     .achievements-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -105,7 +104,6 @@
       border-radius: 2px;
     }
 
-    /* Placeholder for cards with no art yet */
     .achievement-art--placeholder {
       display: flex;
       align-items: center;
@@ -119,7 +117,6 @@
       color: var(--gray-300);
     }
 
-    /* ── Card body ── */
     .achievement-body {
       padding: 14px 16px 16px;
       flex: 1;
@@ -176,7 +173,6 @@
             <p class="user-greeting" id="userGreeting">Level up your life!</p>
         </div>
 
-        <!-- Level Progress -->
         <div class="level-section">
             <div class="level-badge" id="levelBadge">
                 
@@ -196,7 +192,6 @@
             </div>
         </div>
 
-        <!-- Stats Row -->
         <div class="stats-row">
             <div class="stat-card">
                 <div class="stat-value" id="totalXP">0</div>
@@ -212,7 +207,6 @@
             </div>
         </div>
 
-        <!-- streak counter-->
         <div class="streak-section">
             <h2>Daily Streak</h2>
             <div class="streak-display">
@@ -223,11 +217,9 @@
             </div>
         </div>
 
-        <!-- Achievements -->
         <div class="achievements-section">
             <h2>Achievements</h2>
             <div class="achievements-grid" id="achievementsGrid">
-                <!-- populated by JavaScript -->
             </div>
         </div>
     </div>
@@ -393,7 +385,6 @@
         // FUNCTION 1: Load all data
         
         function loadData() {
-            // Load profile data
             const savedProfile = localStorage.getItem('lifeAuditProfile');
             if (savedProfile) {
                 const profile = JSON.parse(savedProfile);
@@ -411,7 +402,6 @@
                 gamificationData = JSON.parse(savedGamification);
             }
 
-            // Update streak
             updateStreak();
 
             // Calculate stats, check achievements
@@ -508,7 +498,7 @@
                     // Show notification
                     showAchievementNotification(achievement);
 
-                    // Trigger colour-unlock shimmer after re-render
+                    // Trigger colour-unlock shimmer after re-rendering
                     setTimeout(() => {
                         const cards = document.querySelectorAll('.achievement-card.earned');
                         cards.forEach(card => {
@@ -698,9 +688,6 @@
             localStorage.setItem('lifeAuditGamification', JSON.stringify(gamificationData));
         }
 
-        
-        // INITIALIZE
-        
         window.addEventListener('load', function() {
             loadData();
         });
