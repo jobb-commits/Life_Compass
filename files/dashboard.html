@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Audit System - Progress Dashboard</title>
-    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
@@ -245,7 +244,7 @@
 	                item.innerHTML = `
 	                    <div class="activity-icon">${category.name.split('/')[0].slice(0, 1)}</div>
 	                    <div class="activity-content">
-	                        <div class="activity-text">${goal.completed ? '' : ''} ${goal.title}</div>
+	                        <div class="activity-text">${goal.title}</div>
 	                        <div class="activity-time">${timeAgo} • ${category.name}</div>
 	                    </div>
 	                `;

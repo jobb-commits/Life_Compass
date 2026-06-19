@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Audit System - My Goals</title>
-    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
@@ -97,7 +96,7 @@
                 color: 'relationships'
             },
             hobbies: {
-                name: 'Skills/Hobbiess',
+                name: 'Skills/Hobbies',
                 color: 'hobbies'
             }
         };
@@ -244,7 +243,7 @@
                 
                 section.innerHTML = `
                     <div class="category-header">
-                        <div class="category-icon">${category.icon}</div>
+                        <div class="category-icon"></div>
                         <div class="category-title">
                             <h3>${category.name}</h3>
                             <div class="category-count">${completedCount} of ${totalCount} completed</div>
@@ -356,8 +355,8 @@
         // FUNCTIOn to Award XP and update gamification
         function awardXP(amount, reason) {
             // Load gamification data
-            let gamificationData = localStorage.getItem('lifeAuditGamification');
-            let data = gamificationData ? JSON.parse(gamificationData) : {
+            let savedGamification = localStorage.getItem('lifeAuditGamification');
+            let data = savedGamification ? JSON.parse(savedGamification) : {
                 totalXP: 0,
                 unlockedAchievements: [],
                 streak: 0,
@@ -382,7 +381,7 @@
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: linear-gradient(135deg, #667eea, #764ba2);
+                background: var(--black);
                 color: white;
                 padding: 20px 30px;
                 border-radius: 15px;
@@ -419,7 +418,7 @@
         `;
         document.head.appendChild(style);
 
-        // FUNCTION 8: Goal deletionn function
+        // FUNCTION 8: Goal deletion function
         function deleteGoal(goalId) {
             if (confirm('Are you sure you want to delete this goal?')) {
                 goals = goals.filter(g => g.id !== goalId);
