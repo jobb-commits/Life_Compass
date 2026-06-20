@@ -8,6 +8,10 @@
     <style>
         .meta-icon { width: 14px; height: 14px; vertical-align: middle; display: inline-block; }
         .category-icon i, .category-icon svg { width: 24px; height: 24px; }
+        .insight-icon i, .insight-icon svg,
+        .empty-icon i, .empty-icon svg { width: 28px; height: 28px; }
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -84,13 +88,23 @@
         //AI INTEGRATION (Via Vercel Backend)
         async function fetchAIRecommendations() {
             // Show loading UI
-            document.getElementById('insightsCards').innerHTML = "<div class='insight-card'><div class='insight-icon'>⏳</div><div class='insight-text'>Analyzing your profile...</div></div>";
-            document.getElementById('resourcesContainer').innerHTML = "<div class='empty-state'><div class='empty-icon'>🧠</div><div>Generating personalized resources...</div></div>";
+            document.getElementById('insightsCards').innerHTML = "<div class='insight-card'><div class='insight-icon'><i data-lucide='loader-circle' class='loader-spin'></i></div><div class='insight-text'>Analyzing your profile...</div></div>";
+            document.getElementById('resourcesContainer').innerHTML = "<div class='empty-state'><div class='empty-icon'><i data-lucide='brain'></i></div><div>Generating personalized resources...</div></div>";
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            // Only send the fields Gemini actually needs — trimming this keeps
+            // the prompt (and required output) smaller as goals pile up,
+            // which reduces the chance of hitting the output token limit
+            const trimmedGoals = goals.map(g => ({
+                title: g.title,
+                category: g.category,
+                completed: g.completed
+            }));
 
             const prompt = `
             You are an expert life coach auditing a client.
             User Profile: ${JSON.stringify(profile)}
-            User Goals: ${JSON.stringify(goals)}
+            User Goals: ${JSON.stringify(trimmedGoals)}
             
             Based strictly on this profile and these goals, provide 3 personalized insights and 5 highly relevant recommended resources (books, courses, apps, or tools). 
         
@@ -103,7 +117,7 @@
             You MUST return ONLY valid JSON in this exact structure:
             {
                 "insights": [
-                    {"icon": "💡", "text": "Insight text here"}
+                    {"text": "Insight text here"}
                 ],
                 "resources": {
                     "career": [],
@@ -113,6 +127,7 @@
                     "hobbies": []
                 }
             }
+            Keep each insight under 25 words and each resource description under 30 words so the full response stays compact.
             Make sure to populate the arrays inside "resources" with objects that have these exact keys: type, title, author, description, rating, difficulty, timeRequired, tags (array of strings), link.
             `;
 
@@ -127,23 +142,39 @@
                 if (!response.ok) throw new Error('Backend response not OK');
 
                 const data = await response.json();
-                
-                // Parse the Gemini JSON output
-                const aiResult = JSON.parse(data.candidates[0].content.parts[0].text);
-                
+
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!rawText) throw new Error('No content returned from Gemini');
+
+                // Parse the Gemini JSON output, with a clear message if it
+                // was cut off mid-response rather than a generic failure
+                let aiResult;
+                try {
+                    aiResult = JSON.parse(rawText);
+                } catch (parseError) {
+                    if (data.truncated) {
+                        throw new Error('Response was truncated before it finished generating.');
+                    }
+                    throw parseError;
+                }
+
                 // Overwrite fallback data with AI data
                 RESOURCES = aiResult.resources;
                 
                 // Render UI
                 renderAIInsights(aiResult.insights);
                 displayResources();
-                displayFavorites(); // Re-check favorites against the new AI resources
+                displayFavorites(); // Refresh favorites display (saved resources persist independently)
 
             } catch (error) {
                 console.error("AI Integration Error:", error);
-                document.getElementById('insightsCards').innerHTML = "<div class='insight-card'>Failed to load AI insights. Make sure your local Vercel dev server is running!</div>";
+                const message = error.message.includes('truncated')
+                    ? "The AI response was too long and got cut off. Showing fallback resources instead — try again with fewer goals, or just refresh."
+                    : "Failed to load AI insights. Make sure your Vercel backend is running and reachable.";
+                document.getElementById('insightsCards').innerHTML = `<div class='insight-card'>${message}</div>`;
                 // Render the fallback resources so the page isn't totally blank
                 displayResources();
+                displayFavorites();
             }
         }
 
@@ -155,11 +186,12 @@
                 const card = document.createElement('div');
                 card.className = 'insight-card';
                 card.innerHTML = `
-                    <div class="insight-icon">${insight.icon}</div>
+                    <div class="insight-icon"><i data-lucide="lightbulb"></i></div>
                     <div class="insight-text">${insight.text}</div>
                 `;
                 container.appendChild(card);
             });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         // FUNCTION 1: Load data
@@ -186,8 +218,7 @@
 
         // FUNCTION 2: Display saved favorites
         function displayFavorites() {
-            const saved = localStorage.getItem('savedResources');
-            const savedArray = saved ? JSON.parse(saved) : [];
+            const savedArray = getSavedResources();
 
             const favoritesSection = document.getElementById('favoritesSection');
             const favoritesGrid = document.getElementById('favoritesGrid');
@@ -201,24 +232,35 @@
             favoritesSection.style.display = 'block';
             favoritesGrid.innerHTML = '';
 
-            // Find all saved resources across all categories
-            const allResources = [];
-            Object.keys(RESOURCES).forEach(category => {
-                RESOURCES[category].forEach(resource => {
-                    if (savedArray.includes(resource.title)) {
-                        allResources.push(resource);
-                    }
-                });
-            });
-
-            // Display each saved resource
-            allResources.forEach(resource => {
+            // Render directly from the saved resource objects — these persist
+            // across refreshes and AI re-fetches, independent of what's
+            // currently in RESOURCES
+            savedArray.forEach(resource => {
                 const card = createFavoriteCard(resource);
                 favoritesGrid.appendChild(card);
             });
 
             // Re-render Lucide icons injected into dynamic HTML
             if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Helper: read savedResources from localStorage, migrating the old
+        // "array of title strings" format to "array of full resource objects"
+        // if needed, so favorites saved before this fix aren't lost
+        function getSavedResources() {
+            const saved = localStorage.getItem('savedResources');
+            let savedArray = saved ? JSON.parse(saved) : [];
+
+            const isOldFormat = savedArray.length > 0 && typeof savedArray[0] === 'string';
+            if (isOldFormat) {
+                const migrated = savedArray
+                    .map(title => findResourceByTitle(title))
+                    .filter(Boolean); // drop titles that no longer match anything
+                localStorage.setItem('savedResources', JSON.stringify(migrated));
+                return migrated;
+            }
+
+            return savedArray;
         }
 
         // FUNCTION 3: Create favorite resource card
@@ -242,11 +284,11 @@
                 </div>
                 <div class="resource-tags">${tagsHTML}</div>
                 <div class="resource-actions">
-                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? ' Learn More' : 
- resource.type === 'course' ? ' Enroll' :
- resource.type === 'app' ? ' Download' :
- resource.type === 'tool' ? ' Try It' :
- ' Visit'}</button>
+                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? 'Learn More' : 
+ resource.type === 'course' ? 'Enroll' :
+ resource.type === 'app' ? 'Download' :
+ resource.type === 'tool' ? 'Try It' :
+ 'Visit'}</button>
                     <button class="action-btn btn-secondary-action" onclick="removeFavorite('${resource.title}')">Remove</button>
                 </div>
             `;
@@ -256,16 +298,15 @@
 
         // FUNCTION 4: Remove from favorites
         function removeFavorite(title) {
-            let saved = localStorage.getItem('savedResources');
-            let savedArray = saved ? JSON.parse(saved) : [];
+            let savedArray = getSavedResources();
             
-            savedArray = savedArray.filter(item => item !== title);
+            savedArray = savedArray.filter(item => item.title !== title);
             localStorage.setItem('savedResources', JSON.stringify(savedArray));
             
             // Refresh display
             displayFavorites();
             
-            alert(`🗑️ "${title}" removed from favorites!`);
+            alert(`"${title}" removed from favorites!`);
         }
 
         // FUNCTION 5: Setup filter buttons
@@ -379,7 +420,7 @@
  resource.type === 'course' ? 'Enroll' :
  resource.type === 'app' ? 'Download' :
  resource.type === 'tool' ? 'Try It' :
- ' Visit'}</button>
+ 'Visit'}</button>
                     <button class="action-btn btn-secondary-action" onclick="saveResource('${resource.title}')">Save</button>
                 </div>
             `;
@@ -398,20 +439,35 @@
 
         // FUNCTION 10: Save resource to favorites
         function saveResource(title) {
-            let saved = localStorage.getItem('savedResources');
-            let savedArray = saved ? JSON.parse(saved) : [];
-            
-            if (!savedArray.includes(title)) {
-                savedArray.push(title);
+            // Find the full resource object so it survives a refresh
+            // even if the AI returns a different RESOURCES set next time
+            const resource = findResourceByTitle(title);
+            if (!resource) return;
+
+            let savedArray = getSavedResources();
+
+            const alreadySaved = savedArray.some(item => item.title === title);
+
+            if (!alreadySaved) {
+                savedArray.push(resource);
                 localStorage.setItem('savedResources', JSON.stringify(savedArray));
-                
+
                 // Refresh favorites display
                 displayFavorites();
-                
+
                 alert(`"${title}" saved to your favorites!`);
             } else {
                 alert(`"${title}" is already in your favorites!`);
             }
+        }
+
+        // Helper: find a resource object by title across all current categories
+        function findResourceByTitle(title) {
+            for (const category of Object.keys(RESOURCES)) {
+                const match = RESOURCES[category].find(r => r.title === title);
+                if (match) return match;
+            }
+            return null;
         }
 
         // INITIALIZE
