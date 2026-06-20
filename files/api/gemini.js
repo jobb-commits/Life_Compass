@@ -26,8 +26,12 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { 
-                    response_mime_type: "application/json" // Force output to be of JSON format
+                generationConfig: {
+                    response_mime_type: "application/json", // Force output to be of JSON format
+                    maxOutputTokens: 8192, // Headroom for 5 resources + 3 insights even with a long goals list
+                    thinkingConfig: {
+                        thinkingBudget: 1024 // Cap internal reasoning so it doesn't eat the whole token budget
+                    }
                 }
             })
         });
@@ -39,8 +43,15 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
-        
-        // 4. Send the successful data back to your frontend
+
+        // 4. Flag truncated responses so the frontend can handle them gracefully
+        const finishReason = data?.candidates?.[0]?.finishReason;
+        if (finishReason === 'MAX_TOKENS') {
+            console.error('Gemini response was truncated (MAX_TOKENS).');
+            return res.status(200).json({ ...data, truncated: true });
+        }
+
+        // 5. Send the successful data back to your frontend
         return res.status(200).json(data);
 
     } catch (error) {
