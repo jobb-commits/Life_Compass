@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Life Audit — Deep Profile</title>
-  <link rel="stylesheet" href="styles.css">
   <style>
+
     .page-header {
       background: var(--white);
       border-radius: var(--radius-lg);
@@ -503,7 +504,10 @@
       .two-col { grid-template-columns: 1fr; }
       .energy-row { grid-template-columns: 1fr 1fr; }
       .dp-section { padding: 22px 18px; }
-      .save-bar { flex-direction: column; align-items: flex-start; }
+      .save-bar { flex-direction: column; align-items: stretch; }
+      .save-bar-right { flex-direction: column; align-items: stretch; width: 100%; }
+      .save-bar-right .btn { width: 100%; text-align: center; }
+      .save-status { align-self: flex-start; }
       .section-number { font-size: 32px; }
     }
 
@@ -518,7 +522,7 @@
 
     <div class="page-header">
       <h1>Deep Profile</h1>
-      <p class="subtitle">The context that turns generic advice into a plan built specifically for you</p>
+      <p class="subtitle">The context that turns generic advice into a plan built specifcally for you</p>
     </div>
 
     <!-- 
@@ -802,7 +806,7 @@
         <span class="save-status" id="saveStatus">Saved</span>
         <button class="btn btn-secondary" onclick="loadProfile()">Load Saved</button>
         <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
-        <a href="goals.html" class="btn btn-primary">Continue to Goals</a>
+        <a href="dashboard.html" class="btn btn-primary">Continue to Dashboard</a>
       </div>
     </div>
 
