@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <link rel="stylesheet" href="styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Life Audit — Deep Profile</title>
+  <title>Life Compass-Deep Profile</title>
   <style>
 
     .page-header {
@@ -227,7 +227,7 @@
       box-shadow: 0 0 0 1.5px var(--black);
     }
 
-    /* ── Wheel for level of satisfaction ── */
+    /* Wheel for level of satisfaction, not working currently. Fix during css implementation(slider visibility that is) */
     .wheel-wrap {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -273,7 +273,6 @@
       color: var(--black);
     }
 
-    /* ── Goal Why cards ── */
     .goal-why-card {
       border: 1px solid var(--gray-200);
       border-radius: var(--radius-md);
@@ -320,7 +319,7 @@
       text-underline-offset: 3px;
     }
 
-    /* ── Chip / multi-select options ── */
+    /*multi-select options*/
     .chip-group {
       display: flex;
       flex-wrap: wrap;
@@ -350,7 +349,6 @@
       border-color: var(--black);
     }
 
-    /* ── Skills input ── */
     .skills-input-wrap { position: relative; }
 
     .skills-tags {
@@ -407,7 +405,6 @@
       padding: 2px 4px;
     }
 
-    /* ── Tools input ── */
     .tools-input {
       width: 100%;
       padding: 11px 14px;
@@ -423,14 +420,12 @@
       border-color: var(--black);
     }
 
-    /* ── Two-col grid ── */
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
 
-    /* ── Energy audit mini-stats ── */
     .energy-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -497,8 +492,7 @@
     }
 
     .save-status.show { opacity: 1; }
-
-    /* ── Responsive ── */
+    
     @media (max-width: 720px) {
       .wheel-wrap { grid-template-columns: 1fr; }
       .two-col { grid-template-columns: 1fr; }
@@ -522,11 +516,11 @@
 
     <div class="page-header">
       <h1>Deep Profile</h1>
-      <p class="subtitle">The context that turns generic advice into a plan built specifcally for you</p>
+      <p class="subtitle">The context that turns generic advice into a plan built specifcally for YOU</p>
     </div>
 
     <!-- 
-         SECTION 1 — The "Why" Behind Goals
+         SECTION 1 : The "Why" Behind Goals
      -->
     <div class="dp-section">
       <div class="dp-section-header">
@@ -545,14 +539,14 @@
     </div>
 
     <!-- 
-         SECTION 2 — Life Satisfaction Wheel
+         SECTION 2 : Life Satisfaction Wheel
      -->
     <div class="dp-section">
       <div class="dp-section-header">
         <div class="section-number">2</div>
         <div class="section-meta">
           <h2>Current Life Assessment</h2>
-          <p>Be candid about your current standing in each category. This allows the AI to calculate your growth potential and highlight the most impactful areas for you to tackle right now.</p>
+          <p>Be open and sincere about your current standing in each category. This allows the AI to calculate your growth potential and highlight the most impactful areas for you to tackle right now.</p>
         </div>
       </div>
 
@@ -597,14 +591,14 @@
     </div>
 
     <!-- 
-         SECTION 3 — Constraints & Reality Check
+         SECTION 3 : Constraints & Reality Check
     -->
     <div class="dp-section">
       <div class="dp-section-header">
         <div class="section-number">3</div>
         <div class="section-meta">
           <h2>Constraints & Reality Check</h2>
-          <p>An AI plan is useless if it ignores your actual life. This is where we ground everything in reality.</p>
+          <p>An AI plan is useless if it ignores your actual life.</p>
         </div>
       </div>
 
@@ -639,7 +633,7 @@
 
         <div class="dp-field">
           <label>Financial Runway</label>
-          <span class="hint">If a goal needs money, how many months of expenses are saved?</span>
+          <span class="hint">If you needed to rely only on your savings, how long could you cover your monthly expenses?</span>
           <select id="financialRunway">
             <option value="">Select...</option>
             <option value="0">None (living paycheck to paycheck)</option>
@@ -653,8 +647,8 @@
 
       <div class="dp-field">
         <label>Non-Negotiable Commitments</label>
-        <span class="hint">List the obligations that your plan must work around. e.g., "Full-time job 9–5", "Caring for a parent", "Young children at home".</span>
-        <textarea id="obligations" placeholder="Full-time job, Mon–Fri 8am–6pm&#10;Evening childcare until kids are in bed (9pm)&#10;Weekly family obligation on Sundays"></textarea>
+        <span class="hint">List the obligations that your plan must work around. e.g., "Full-time job 9 to 5", "Young children at home".</span>
+        <textarea id="obligations" placeholder="Full-time job, Mon–Fri 8am–6pm&#10;Weekly family obligation on Sundays"></textarea>
       </div>
 
       <div class="dp-field">
@@ -674,14 +668,14 @@
     </div>
 
     <!-- 
-         SECTION 4 — Personality & Learning Style
+         SECTION 4 : Personality & Learning Style
     -->
     <div class="dp-section">
       <div class="dp-section-header">
         <div class="section-number">4</div>
         <div class="section-meta">
           <h2>Personality & Learning Style</h2>
-          <p>This turns generic advice into advice that actually fits how you think, decide, and learn.</p>
+          <p>Turns generic advice into advice that actually fits how you think, decide and learn.</p>
         </div>
       </div>
 
@@ -745,6 +739,7 @@
             <div class="chip" data-value="growth">Personal growth</div>
             <div class="chip" data-value="impact">Impact on others</div>
             <div class="chip" data-value="freedom">Freedom & autonomy</div>
+            <div class="chip" data-value="proveOthersWrong">Silencing your doubters</div>
           </div>
           <input type="hidden" id="goalMotivation">
         </div>
@@ -752,7 +747,7 @@
     </div>
 
     <!--
-         SECTION 5 — Resources & Assets
+         SECTION 5: Resources & Assets
     -->
     <div class="dp-section">
       <div class="dp-section-header">
@@ -765,16 +760,16 @@
 
       <div class="dp-field">
         <label>Top Skills</label>
-        <span class="hint">What are 3–5 things you're genuinely good at? Can be professional or personal. Type a skill and press Enter.</span>
+        <span class="hint">What are 3–5 things you're genuinely good at? Can be professional or personal.</span>
         <div class="skills-tags" id="skillsTags" onclick="document.getElementById('skillInput').focus()">
-          <input type="text" id="skillInput" class="skill-input-field" placeholder="Type a skill and press Enter...">
+          <input type="text" id="skillInput" class="skill-input-field" placeholder="Type a skill and press Enter..." enterkeyhint="done">
         </div>
         <input type="hidden" id="topSkills">
       </div>
 
       <div class="dp-field">
         <label>Existing Tools & Subscriptions</label>
-        <span class="hint">Which productivity, learning, or finance tools are already part of your routine? For example, M-Pesa, Notion, Anki, or Google Calendar.</span>
+        <span class="hint">Which productivity, learning or finance tools are already part of your routine?</span>
         <input type="text" class="tools-input" id="existingTools" placeholder="e.g., Notion, Anki, Spotify, Google Calendar">
       </div>
 
@@ -799,7 +794,7 @@
       </div>
     </div>
 
-    <!-- ── Save Bar ── -->
+  
     <div class="save-bar">
       <div class="save-bar-left">Your answers stay private in your browser. Nothing is sent anywhere.</div>
       <div class="save-bar-right">
@@ -1086,6 +1081,8 @@
 
   function initSkillInput() {
     const input = document.getElementById('skillInput');
+
+    // Desktop / hardware keyboards: normal keydown works fine here.
     input.addEventListener('keydown', e => {
       if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
         e.preventDefault();
@@ -1094,6 +1091,19 @@
       }
       if (e.key === 'Backspace' && !input.value && skills.length) {
         removeSkill(skills[skills.length - 1]);
+      }
+    });
+
+    // Ran into an issue where on mobile, the "done" button on the keyboard doesn't trigger keydown events, so we need to also listen for input events and check for newlines or commas.
+    input.addEventListener('input', () => {
+      if (input.value.includes('\n')) {
+        const value = input.value.replace(/\n/g, '').trim();
+        input.value = '';
+        if (value) addSkill(value.replace(/,/g, ''));
+      } else if (input.value.includes(',')) {
+        const value = input.value.replace(/,/g, '').trim();
+        input.value = '';
+        if (value) addSkill(value);
       }
     });
   }
