@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Audit System - User Profile</title>
+    <title>Life Compass-Basic User Profile</title>
     
 </head>
 <body class="page-profile">
@@ -21,7 +21,7 @@
         <div id="successMessage" class="success-message">Profile saved successfully!</div>
 
         <form id="profileForm">
-            <!-- Gather Basic User Information Section -->
+            <!-- Gather Basic User Info -->
             <div class="form-section">
                 <h2 class="section-title">Basic Information</h2>
                 
@@ -33,7 +33,6 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="age">Age</label>
-                        <!-- set limits to ages ideally use 13 to 120. Realistic lifespan and user not too young at the same time-->
                         <input type="number" id="age" name="age" min="13" max="120" required>
                     </div>
                     
@@ -51,12 +50,12 @@
 
                 <div class="form-group">
                     <label for="occupation">Current Occupation</label>
-                    <input type="text" id="occupation" name="occupation" placeholder="e.g., Software Developer, Student, Entrepreneur" required>
+                    <input type="text" id="occupation" name="occupation" placeholder="e.g., Student, Software Developer, Entrepreneur" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="location">City / Town <span style="font-weight: normal; font-size: 0.85em; opacity: 0.7;">— used to tailor local recommendations</span></label>
-                    <input type="text" id="location" name="location" placeholder="e.g., Nairobi, Mombasa, Kisumu">
+                    <label for="location">City / Town <span style="font-weight: normal; font-size: 0.85em; opacity: 0.7;">optional but used to tailor local recommendations</span></label>
+                    <input type="text" id="location" name="location" placeholder="e.g., Nairobi, Mombasa, Nakuru">
                 </div>
 
                 <div class="form-group">
@@ -73,7 +72,7 @@
                 </div>
             </div>
 
-            <!--Get Useer Short and Long Term  Goals Section -->
+            <!--User Long and Short Term Goal Selection -->
             <div class="form-section">
                 <h2 class="section-title">Your Goals</h2>
                 
@@ -83,7 +82,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="longTermGoals">Long-term Goals (1-5+ years)</label>
+                    <label for="longTermGoals">Long-term Goals (In 1-5+ years)</label>
                     <textarea id="longTermGoals" name="longTermGoals" placeholder="Example: Start my own business, Get Married, Travel to 10 countries" required></textarea>
                 </div>
             </div>
@@ -103,8 +102,6 @@
 
     <script>
         
-
-        // Get references to HTML elements we'll work with
         const form = document.getElementById('profileForm');
         const loadBtn = document.getElementById('loadBtn');
         const successMessage = document.getElementById('successMessage');
@@ -135,17 +132,15 @@
             
             showSuccessMessage();
             
-            console.log('Profile saved:', profileData); // See it in browser console (F12)
+            console.log('Profile saved:', profileData);
         });
 
         
         // FUNCTION 2: Load saved profile data
         
         loadBtn.addEventListener('click', function() {
-            // Get saved data from localStorage
             const savedData = localStorage.getItem('lifeAuditProfile');
             
-            // Section checks if there is actually saved data
             if (savedData) {
                 // Convert the JSON text back into a JavaScript object
                 const profileData = JSON.parse(savedData);
@@ -162,7 +157,6 @@
                 
                 showSuccessMessage('Profile loaded successfully!');
             } else {
-                // No saved data found
                 alert('No saved profile found. Please fill out and save your profile first.');
             }
         });
@@ -174,16 +168,13 @@
             successMessage.textContent = message;
             successMessage.classList.add('show');
             
-            // To hide the message after 3 seconds
+            // Hide message after 3 seconds
             setTimeout(function() {
                 successMessage.classList.remove('show');
             }, 3000);
         }
 
-        
-        // Auto-load profile when page loads
-        
-        // This section automatically shows a welcome message to areturning user
+        // Automatically shows a welcome message to areturning user
         window.addEventListener('load', function() {
             const savedData = localStorage.getItem('lifeAuditProfile');
             if (savedData) {
@@ -194,13 +185,13 @@
         });
 
         
-        // FUNCTION 4: Display our welcome banner
+        // FUNCTION 4: Display our dynamic welcome banner
         
         function showWelcomeMessage(name) {
             const welcomeBanner = document.getElementById('welcomeBanner');
             const welcomeText = document.getElementById('welcomeText');
             
-            // Array fun greeting messages
+            // Array of 'fun' greeting messages
             const greetings = [
                 `Welcome back, ${name}! Ready to crush your goals? `,
                 `${name} returns! Let's make today count! `,
