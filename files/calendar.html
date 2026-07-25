@@ -8,13 +8,11 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>Calendar View</h1>
             <p class="user-greeting" id="userGreeting">Your goals timeline</p>
         </div>
 
-        <!-- Calendar -->
         <div class="calendar-section">
             <div class="calendar-header">
                 <h2 class="calendar-title">Goal Calendar</h2>
@@ -26,7 +24,6 @@
             </div>
 
             <div class="calendar-grid" id="calendarGrid">
-                <!-- Day headers -->
                 <div class="calendar-day-header">Sun</div>
                 <div class="calendar-day-header">Mon</div>
                 <div class="calendar-day-header">Tue</div>
@@ -34,11 +31,10 @@
                 <div class="calendar-day-header">Thu</div>
                 <div class="calendar-day-header">Fri</div>
                 <div class="calendar-day-header">Sat</div>
-                <!-- Days are populated dynamically by JS below -->
+                <!-- Days should be populated dynamically by JS below -->
             </div>
         </div>
 
-        <!-- Upcoming Goals -->
         <div class="upcoming-section">
             <h2>Upcoming Deadlines</h2>
             <div class="upcoming-list" id="upcomingList">
@@ -54,7 +50,7 @@
             const savedGoals = localStorage.getItem('lifeAuditGoals');
             goals = savedGoals ? JSON.parse(savedGoals) : [];
             
-            // This part should filter only goals with deadlines
+            // part should filter only goals with deadlines
             goals = goals.filter(g => g.deadline);
         }
 
@@ -145,7 +141,7 @@
             return dayDiv;
         }
 
-        // FUNCTION: Render upcoming goals
+        // Render upcoming goals
         function renderUpcoming() {
             const list = document.getElementById('upcomingList');
             list.innerHTML = '';
@@ -202,8 +198,6 @@
             });
         }
 
-    
-        // Get category name
         function getCategoryName(category) {
             const names = {
                 career: 'Career',
@@ -215,8 +209,6 @@
             return names[category] || category;
         }
 
-        
-        // INITIALIZE
         window.addEventListener('load', function() {
             loadGoals();
             renderCalendar();
