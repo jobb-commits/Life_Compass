@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Audit System - Timeline & Milestones</title>
+    <title>Life Compass- Timeline & Milestones</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,7 +13,6 @@
             <p class="user-info" id="userInfo">Personalized milestones based on your age</p>
         </div>
 
-        <!-- Stats Overview -->
         <div class="stats-row">
             <div class="stat-card">
                 <div class="stat-value" id="currentAge">--</div>
@@ -29,7 +28,6 @@
             </div>
         </div>
 
-        <!-- Current Life Stage -->
         <div class="current-stage">
             <div class="stage-icon" id="stageIcon"></div>
             <h2 id="stageName">Loading...</h2>
@@ -37,19 +35,15 @@
             <span class="age-range" id="ageRange"></span>
         </div>
 
-        <!-- Personalized Recommendations -->
         <div class="recommendations-section">
             <h2>Recommended Focus Areas for Your Age</h2>
             <div class="recommendation-grid" id="recommendationsGrid">
-                <!-- Will be filled in by JavaScript -->
             </div>
         </div>
 
-        <!-- Visual Timeline -->
         <div class="timeline-section">
             <h2>Life Milestones Roadmap</h2>
             <div class="timeline" id="timeline">
-                <!-- Will be populated by JavaScript -->
             </div>
         </div>
     </div>
@@ -264,7 +258,6 @@
         }
 
         
-        // INITIALIZE
         window.addEventListener('load', function() {
             loadData();
         });
