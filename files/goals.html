@@ -3,18 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Audit System - My Goals</title>
+    <title>Life Compass-My Goals</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>My Goals</h1>
             <p class="user-greeting" id="userGreeting">Loading...</p>
         </div>
 
-        <!-- Stats Summary -->
         <div class="stats-summary">
             <div class="stat-card">
                 <div class="stat-number" id="totalGoals">0</div>
@@ -30,7 +28,6 @@
             </div>
         </div>
 
-        <!-- Add Goal Section -->
         <div class="add-goal-section">
             <h2>Add New Goal</h2>
             <form id="goalForm" class="goal-form">
@@ -75,9 +72,7 @@
     </div>
 
     <script>
-        // INITIALIZE: Set up categories and load data
-        
-        // Define our 5 goal categories with icons and colors
+        // Set up categories, load data
         const CATEGORIES = {
             career: {
                 name: 'Career/Education',
@@ -114,7 +109,7 @@
             return `${day}/${month}/${year}`;
         }
 
-        // Achievement definitions (will be used for XP calculation)
+        // Achievement definitions (for XP calculation)
         const ACHIEVEMENTS = [
             { id: 'first_goal', requirement: (stats) => stats.totalGoals >= 1, xp: 50 },
             { id: 'goal_getter', requirement: (stats) => stats.totalGoals >= 5, xp: 100 },
@@ -133,7 +128,7 @@
             lastActiveDate: null
         };
 
-        // FUNCTION 1: Load user profile and show dynamic greeting
+        // FUNCTION 1: Load user profile, should also show dynamic greeting from provided set
         function loadUserProfile() {
             const savedProfile = localStorage.getItem('lifeAuditProfile');
             
@@ -261,7 +256,6 @@
                 if (categoryGoals.length === 0) {
                     goalsList.innerHTML = `
                         <div class="empty-state">
-                            <div class="empty-state-icon">📝</div>
                             <div>No goals in this category yet</div>
                         </div>
                     `;
@@ -439,7 +433,7 @@
             document.getElementById('pendingGoals').textContent = pending;
         }
 
-        // INITIALIZE: Run when page loads
+        // Run when page loads
         window.addEventListener('load', function() {
             loadUserProfile();
             loadGoals();
