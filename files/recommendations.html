@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Audit System - Recommendations</title>
+    <title>Life Compass - Recommendations</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         .meta-icon { width: 14px; height: 14px; vertical-align: middle; display: inline-block; }
@@ -83,60 +83,167 @@
         let currentFilter = 'all';
         let userAge = 0;
         let profile = {};
+        let deepProfile = {};
 
         
-        //AI INTEGRATION (Via Vercel Backend)
+        //AI INTEGRATION (Used Vercel Backend)
         async function fetchAIRecommendations() {
             // Show loading UI
             document.getElementById('insightsCards').innerHTML = "<div class='insight-card'><div class='insight-icon'><i data-lucide='loader-circle' class='loader-spin'></i></div><div class='insight-text'>Analyzing your profile...</div></div>";
             document.getElementById('resourcesContainer').innerHTML = "<div class='empty-state'><div class='empty-icon'><i data-lucide='brain'></i></div><div>Generating personalized resources...</div></div>";
             if (typeof lucide !== 'undefined') lucide.createIcons();
 
-            // Only send the fields Gemini actually needs — trimming this keeps
-            // the prompt (and required output) smaller as goals pile up,
-            // which reduces the chance of hitting the output token limit
+            // Trim goals to only the fields Gemini needs
             const trimmedGoals = goals.map(g => ({
                 title: g.title,
                 category: g.category,
                 completed: g.completed
             }));
 
-            const prompt = `
-            You are an expert life coach auditing a client.
-            User Profile: ${JSON.stringify(profile)}
-            User Goals: ${JSON.stringify(trimmedGoals)}
-            
-            Based strictly on this profile and these goals, provide 3 personalized insights and 5 highly relevant recommended resources (books, courses, apps, or tools). 
-        
-            CRITICAL CONTEXT: Tailor all insights and resources specifically for a university student living in ${profile.location || 'Nairobi, Kenya'}. 
-          - For finance goals, prioritize tools that integrate with local payment methods and banks in that region.
-          - For career/tech goals, recommend local hubs, tech communities, or networking events near ${profile.location || 'Nairobi'}.
-          - For health/hobbies, suggest activities, clubs, or resources accessible in ${profile.location || 'Nairobi'}.
-          - Ensure all recommended apps or platforms are fully available and functional in that region.
-            
-            You MUST return ONLY valid JSON in this exact structure:
-            {
-                "insights": [
-                    {"text": "Insight text here"}
-                ],
-                "resources": {
-                    "career": [],
-                    "health": [],
-                    "finance": [],
-                    "relationships": [],
-                    "hobbies": []
+            // Work out which categories the user actually has goals in,
+            // so we can ask Gemini to focus resources there
+            const activeCategories = [...new Set(goals.map(g => g.category))];
+            const categoriesToCover = activeCategories.length > 0
+                ? activeCategories
+                : ['career', 'health', 'finance', 'relationships', 'hobbies'];
+
+            // Pull the most useful deep profile fields for Gemini,
+            // skipping internal/technical ones (savedAt, goalWhys)
+            const deepContext = deepProfile ? {
+                lifeWheelScores:     deepProfile.wheelValues,      // satisfaction 1-10 per area
+                focusHoursPerDay:    deepProfile.focusHours,
+                sleepHoursPerNight:  deepProfile.sleepHours,
+                peakProductivityTime:deepProfile.peakTime,
+                freeTimeHoursPerWeek:deepProfile.freeTimeHours,
+                freeTimeWhen:        deepProfile.freeTimeWhen,
+                financialRunway:     deepProfile.financialRunway,  // how many months of savings
+                obligations:         deepProfile.obligations,      // fixed life constraints
+                biggestBarrier:      deepProfile.barrierValue,
+                decisionStyle:       deepProfile.decisionStyle,
+                accountabilityStyle: deepProfile.accountabilityStyle,
+                learningStyle:       deepProfile.learningStyle,    // video / reading / hands-on etc.
+                riskTolerance:       deepProfile.riskTolerance,
+                goalMotivation:      deepProfile.goalMotivation,
+                topSkills:           deepProfile.topSkills,
+                existingTools:       deepProfile.existingTools,    // tools they already use
+                networkSupport:      deepProfile.networkSupport,
+                additionalContext:   deepProfile.additionalContext
+            } : {};
+
+            // Remove undefined/empty fields so we don't waste tokens
+            Object.keys(deepContext).forEach(k => {
+                if (!deepContext[k] || deepContext[k] === '' ||
+                    (typeof deepContext[k] === 'object' && Object.keys(deepContext[k]).length === 0)) {
+                    delete deepContext[k];
+                }
+            });
+
+            const hasDeepProfile = Object.keys(deepContext).length > 0;
+            const location = profile.location || 'Kenya';
+
+            // Build life-wheel priority note if scores are available
+            let wheelNote = '';
+            if (deepContext.lifeWheelScores) {
+                const scores = deepContext.lifeWheelScores;
+                const sorted = Object.entries(scores).sort((a, b) => a[1] - b[1]);
+                const lowest = sorted.slice(0, 2).map(([area, score]) => `${area} (${score}/10)`);
+                wheelNote = `Their lowest life satisfaction scores are: ${lowest.join(', ')}. Prioritise resources that address these areas.`;
+            }
+
+            // Build a learning-style note to bias resource types
+            let resourceBias = '';
+            if (deepContext.learningStyle) {
+                const style = deepContext.learningStyle.toLowerCase();
+                if (style.includes('video') || style.includes('watch')) {
+                    resourceBias = 'This person learns best from video — favour courses and YouTube channels over books where possible.';
+                } else if (style.includes('read') || style.includes('book')) {
+                    resourceBias = 'This person is a reader — favour books and written guides over video courses.';
+                } else if (style.includes('hands') || style.includes('doing') || style.includes('practice')) {
+                    resourceBias = 'This person learns by doing — favour interactive tools, apps, and project-based courses.';
                 }
             }
-            Keep each insight under 25 words and each resource description under 30 words so the full response stays compact.
-            Make sure to populate the arrays inside "resources" with objects that have these exact keys: type, title, author, description, rating, difficulty, timeRequired, tags (array of strings), link.
-            `;
+
+            // Build a budget note from financial runway
+            let budgetNote = '';
+            if (deepContext.financialRunway) {
+                const runway = deepContext.financialRunway.toLowerCase();
+                if (runway.includes('1') || runway.includes('2') || runway.includes('tight') || runway.includes('none')) {
+                    budgetNote = 'Budget is tight — strongly prefer free or low-cost resources (free tiers, open-source, YouTube, public libraries).';
+                } else if (runway.includes('12') || runway.includes('abundant') || runway.includes('comfortable')) {
+                    budgetNote = 'Budget is comfortable — paid tools and premium courses are appropriate recommendations.';
+                }
+            }
+
+            // Build time availability note
+            let timeNote = '';
+            if (deepContext.freeTimeHoursPerWeek) {
+                const hrs = parseInt(deepContext.freeTimeHoursPerWeek);
+                if (hrs <= 5) {
+                    timeNote = `Very limited free time (${hrs}h/week) — only recommend resources that can be consumed in short sessions (under 30 minutes each).`;
+                } else if (hrs >= 20) {
+                    timeNote = `Plenty of free time (${hrs}h/week) — longer courses and deeper reading are appropriate.`;
+                }
+            }
+
+            const prompt = `
+You are an expert life coach. Analyze this person's complete profile and generate highly personalized recommendations.
+
+=== BASIC PROFILE ===
+Name: ${profile.name || 'User'}
+Age: ${profile.age || 'Unknown'}
+Occupation: ${profile.occupation || 'Unknown'}
+Education: ${profile.education || 'Unknown'}
+Location: ${location}
+Short-term goals: ${profile.shortTermGoals || 'Not specified'}
+Long-term goals: ${profile.longTermGoals || 'Not specified'}
+
+=== GOALS (structured) ===
+${JSON.stringify(trimmedGoals)}
+
+${hasDeepProfile ? `=== DEEP PROFILE ===
+${JSON.stringify(deepContext, null, 0)}` : ''}
+
+=== PERSONALIZATION RULES ===
+1. LOCATION: All recommendations must be accessible in ${location}. For apps and tools, confirm they work there. For finance, prioritise M-Pesa-compatible tools and local banks if in Kenya. For career, mention local tech hubs, communities, or events if relevant.
+2. OCCUPATION & EDUCATION: Tailor the level and type of resources to their actual background. A student needs different resources than a working professional.
+3. AGE & LIFE STAGE: A ${profile.age || 'young'}-year-old has different priorities and energy than someone older. Reflect this.
+${wheelNote ? `4. LIFE WHEEL: ${wheelNote}` : ''}
+${resourceBias ? `5. LEARNING STYLE: ${resourceBias}` : ''}
+${budgetNote ? `6. BUDGET: ${budgetNote}` : ''}
+${timeNote ? `7. TIME: ${timeNote}` : ''}
+${deepContext.biggestBarrier ? `8. BIGGEST BARRIER: Their main obstacle is "${deepContext.biggestBarrier}". At least one insight should directly address this.` : ''}
+${deepContext.existingTools ? `9. EXISTING TOOLS: They already use ${deepContext.existingTools}. Do NOT recommend these again. Build on them or recommend complementary tools.` : ''}
+${deepContext.additionalContext ? `10. EXTRA CONTEXT: ${deepContext.additionalContext}` : ''}
+
+=== OUTPUT RULES ===
+- Generate exactly 3 sharp, specific insights. Each under 30 words. Reference their actual situation, not generic advice.
+- Generate resources ONLY for these categories (the ones they have goals in): ${categoriesToCover.join(', ')}
+- For each category, provide 1-2 highly relevant resources. Quality over quantity.
+- Each resource description must be specific to this person, not generic copy.
+- Keep each description under 35 words.
+
+You MUST return ONLY valid JSON in this exact structure, no other text:
+{
+    "insights": [
+        {"text": "Insight text here"}
+    ],
+    "resources": {
+        "career": [],
+        "health": [],
+        "finance": [],
+        "relationships": [],
+        "hobbies": []
+    }
+}
+Each resource object must have exactly these keys: type, title, author, description, rating, difficulty, timeRequired, tags (array of strings), link.
+Only populate the categories listed above. Leave others as empty arrays [].
+            `.trim();
 
             try {
-                // Call the secure backend we are building next!
                 const response = await fetch('/api/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
+                    body: JSON.stringify({ prompt })
                 });
 
                 if (!response.ok) throw new Error('Backend response not OK');
@@ -146,8 +253,6 @@
                 const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
                 if (!rawText) throw new Error('No content returned from Gemini');
 
-                // Parse the Gemini JSON output, with a clear message if it
-                // was cut off mid-response rather than a generic failure
                 let aiResult;
                 try {
                     aiResult = JSON.parse(rawText);
@@ -160,19 +265,18 @@
 
                 // Overwrite fallback data with AI data
                 RESOURCES = aiResult.resources;
-                
+
                 // Render UI
                 renderAIInsights(aiResult.insights);
                 displayResources();
-                displayFavorites(); // Refresh favorites display (saved resources persist independently)
+                displayFavorites();
 
             } catch (error) {
                 console.error("AI Integration Error:", error);
                 const message = error.message.includes('truncated')
-                    ? "The AI response was too long and got cut off. Showing fallback resources instead — try again with fewer goals, or just refresh."
+                    ? "The AI response was too long and got cut off. Showing fallback resources instead — try refreshing."
                     : "Failed to load AI insights. Make sure your Vercel backend is running and reachable.";
                 document.getElementById('insightsCards').innerHTML = `<div class='insight-card'>${message}</div>`;
-                // Render the fallback resources so the page isn't totally blank
                 displayResources();
                 displayFavorites();
             }
@@ -208,6 +312,10 @@
             // Load goals
             const savedGoals = localStorage.getItem('lifeAuditGoals');
             goals = savedGoals ? JSON.parse(savedGoals) : [];
+
+            // Load deep profile
+            const savedDeep = localStorage.getItem('lifeAuditDeepProfile');
+            deepProfile = savedDeep ? JSON.parse(savedDeep) : {};
 
             // Trigger the AI fetch 
             await fetchAIRecommendations();
