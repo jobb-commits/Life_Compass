@@ -130,7 +130,6 @@
                 additionalContext:   deepProfile.additionalContext
             } : {};
 
-            // Remove undefined/empty fields so we don't waste tokens
             Object.keys(deepContext).forEach(k => {
                 if (!deepContext[k] || deepContext[k] === '' ||
                     (typeof deepContext[k] === 'object' && Object.keys(deepContext[k]).length === 0)) {
@@ -188,7 +187,7 @@
             const prompt = `
 You are an expert life coach. Analyze this person's complete profile and generate highly personalized recommendations.
 
-=== BASIC PROFILE ===
+BASIC PROFILE 
 Name: ${profile.name || 'User'}
 Age: ${profile.age || 'Unknown'}
 Occupation: ${profile.occupation || 'Unknown'}
@@ -197,13 +196,13 @@ Location: ${location}
 Short-term goals: ${profile.shortTermGoals || 'Not specified'}
 Long-term goals: ${profile.longTermGoals || 'Not specified'}
 
-=== GOALS (structured) ===
+GOALS (structured) 
 ${JSON.stringify(trimmedGoals)}
 
 ${hasDeepProfile ? `=== DEEP PROFILE ===
 ${JSON.stringify(deepContext, null, 0)}` : ''}
 
-=== PERSONALIZATION RULES ===
+PERSONALIZATION RULES 
 1. LOCATION: All recommendations must be accessible in ${location}. For apps and tools, confirm they work there. For finance, prioritise M-Pesa-compatible tools and local banks if in Kenya. For career, mention local tech hubs, communities, or events if relevant.
 2. OCCUPATION & EDUCATION: Tailor the level and type of resources to their actual background. A student needs different resources than a working professional.
 3. AGE & LIFE STAGE: A ${profile.age || 'young'}-year-old has different priorities and energy than someone older. Reflect this.
@@ -215,7 +214,7 @@ ${deepContext.biggestBarrier ? `8. BIGGEST BARRIER: Their main obstacle is "${de
 ${deepContext.existingTools ? `9. EXISTING TOOLS: They already use ${deepContext.existingTools}. Do NOT recommend these again. Build on them or recommend complementary tools.` : ''}
 ${deepContext.additionalContext ? `10. EXTRA CONTEXT: ${deepContext.additionalContext}` : ''}
 
-=== OUTPUT RULES ===
+OUTPUT RULES 
 - Generate exactly 3 sharp, specific insights. Each under 30 words. Reference their actual situation, not generic advice.
 - Generate resources ONLY for these categories (the ones they have goals in): ${categoriesToCover.join(', ')}
 - For each category, provide 1-2 highly relevant resources. Quality over quantity.
@@ -340,15 +339,13 @@ Only populate the categories listed above. Leave others as empty arrays [].
             favoritesSection.style.display = 'block';
             favoritesGrid.innerHTML = '';
 
-            // Render directly from the saved resource objects — these persist
-            // across refreshes and AI re-fetches, independent of what's
-            // currently in RESOURCES
+            // Render directly from the saved resource objects 
+            // Persist across refreshes and AI re-fetches, independent of what's currently in RESOURCES
             savedArray.forEach(resource => {
                 const card = createFavoriteCard(resource);
                 favoritesGrid.appendChild(card);
             });
 
-            // Re-render Lucide icons injected into dynamic HTML
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
@@ -464,7 +461,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 }
             });
 
-            // Re-render Lucide icons injected into dynamic HTML
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
