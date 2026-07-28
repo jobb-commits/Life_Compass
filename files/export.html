@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Audit System - Export Report</title>
+    <title>Life Compass- Export Report</title>
     <link rel="stylesheet" href="styles.css">
     <!-- Links to html to pdf libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,13 +13,18 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>Export</h1>
             <p class="user-greeting" id="userGreeting">Download a comprehensive report</p>
         </div>
 
-        <!-- Export Options -->
+        <div id="noDataWarning" class="success-message" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:6px; padding:14px 18px; margin-bottom:16px;">
+            Complete your profile and add some goals before exporting.
+        </div>
+        <div id="exportSuccess" class="success-message" style="display:none; background:#d4edda; color:#155724; border:1px solid #c3e6cb; border-radius:6px; padding:14px 18px; margin-bottom:16px;">
+            Report exported successfully!
+        </div>
+
         <div class="export-section">
             <h2>Choose Export Format</h2>
             <div class="export-options">
@@ -35,7 +40,6 @@
             </div>
         </div>
 
-        <!-- Preview -->
         <div class="preview-section">
             <h2>Report Preview</h2>
             <p style="color: #666; margin-bottom: 20px;">Your PDF will include:</p>
@@ -51,12 +55,11 @@
         </div>
     </div>
 
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="spinner"></div>
             <div class="loading-text">Generating your report...</div>
-            <p style="color: #666; margin-top: 10px; font-size: 14px;">This may take quite some time</p>
+            <p style="color: #666; margin-top: 10px; font-size: 14px;">This may take some time</p>
         </div>
     </div>
 
@@ -103,32 +106,48 @@
         }
 
         
-        // ACHIEVEMENT DEFINITIONS
+        // ACHIEVEMENT DEFINITIONS — keep in sync with achievements.html
         const ACHIEVEMENTS = [
-            { id: 'first_goal', name: 'First Step', icon: '🎯' },
-            { id: 'goal_getter', name: 'Goal Getter', icon: '📝' },
-            { id: 'ambitious', name: 'Ambitious', icon: '🚀' },
-            { id: 'first_win', name: 'First Victory', icon: '✅' },
-            { id: 'on_fire', name: 'On Fire!', icon: '🔥' },
-            { id: 'unstoppable', name: 'Unstoppable', icon: '⚡' },
-            { id: 'well_rounded', name: 'Well Rounded', icon: '🌟' },
-            { id: 'perfectionist', name: 'Perfectionist', icon: '💎' },
-            { id: 'week_warrior', name: 'Week Warrior', icon: '📅' },
-            { id: 'dedication', name: 'Dedication', icon: '🏆' }
+            { id: 'first_goal',       name: 'The Beginning',     xp: 100   },
+            { id: 'goal_getter',      name: 'Rising Star',       xp: 500   },
+            { id: 'ambitious',        name: 'Limit Breaker',     xp: 500   },
+            { id: 'first_win',        name: 'Breakthrough',      xp: 100   },
+            { id: 'speed_runner',     name: 'Speed Runner',      xp: 400   },
+            { id: 'on_fire',          name: 'On Fire!',          xp: 500   },
+            { id: 'unstoppable',      name: 'Relentless',        xp: 1000  },
+            { id: 'completionist',    name: 'Completionist',     xp: 400   },
+            { id: 'legend',           name: 'Legend',            xp: 5000  },
+            { id: 'well_rounded',     name: 'Master of Balance', xp: 500   },
+            { id: 'week_warrior',     name: 'Weekend Warrior',   xp: 700   },
+            { id: 'dedication',       name: 'Streak Guardian',   xp: 3000  },
+            { id: 'sixty_strong',     name: 'Sixty Strong',      xp: 5000  },
+            { id: 'the_100',          name: 'The 100',           xp: 10000 },
+            { id: 'comeback',         name: 'Comeback King',     xp: 300   },
+            { id: 'never_miss_twice', name: 'Never Miss Twice',  xp: 500   },
+            { id: 'phoenix',          name: 'Phoenix',           xp: 803   },
+            { id: 'ghost',            name: '???',               xp: 777   },
         ];
 
-        // PDF-friendly achievement labels. Ran into an issue where emojis were not rendering properly in the PDF. Opted for simpler symbols instead
+        // PDF-friendly achievement symbols (emojis do not render in jsPDF)
         const ACHIEVEMENT_SYMBOLS = {
-            'first_goal': '[*]',
-            'goal_getter': '[+]',
-            'ambitious': '[^]',
-            'first_win': '[X]',
-            'on_fire': '[~]',
-            'unstoppable': '[!]',
-            'well_rounded': '[#]',
-            'perfectionist': '[&]',
-            'week_warrior': '[=]',
-            'dedication': '[@]'
+            'first_goal':       '[*]',
+            'goal_getter':      '[+]',
+            'ambitious':        '[^]',
+            'first_win':        '[X]',
+            'speed_runner':     '[>]',
+            'on_fire':          '[~]',
+            'unstoppable':      '[!]',
+            'completionist':    '[=]',
+            'legend':           '[L]',
+            'well_rounded':     '[#]',
+            'week_warrior':     '[W]',
+            'dedication':       '[@]',
+            'sixty_strong':     '[S]',
+            'the_100':          '[C]',
+            'comeback':         '[<]',
+            'never_miss_twice': '[N]',
+            'phoenix':          '[P]',
+            'ghost':            '[?]',
         };
 
         const CATEGORIES = {
@@ -148,8 +167,25 @@
             hobbies: '[HOBBIES]'
         };
 
+        function showExportSuccess() {
+            const el = document.getElementById('exportSuccess');
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 4000);
+        }
+
+        function checkHasData() {
+            if (!profile.name || goals.length === 0) {
+                document.getElementById('noDataWarning').style.display = 'block';
+                return false;
+            }
+            document.getElementById('noDataWarning').style.display = 'none';
+            return true;
+        }
+
         // EXPORT PDF (NOW OPTIMIZED FOR SMALLER FILE SIZE)
         async function exportPDF() {
+            if (!checkHasData()) return;
+
             // Show loading
             document.getElementById('loadingOverlay').classList.add('show');
 
@@ -178,12 +214,10 @@
                 pdf.setTextColor(100, 100, 100);
                 pdf.text('Generated on ' + currentDate.toLocaleDateString(), 105, 100, { align: 'center' });
 
-                // Stats boxes
-                pdf.setFontSize(14);
-                pdf.setTextColor(10, 10, 10);
-                pdf.text('Total Goals: ' + totalGoals, 105, 130, { align: 'center' });
-                pdf.text('Completed: ' + completedGoals, 105, 145, { align: 'center' });
-                pdf.text('Success Rate: ' + completionRate + '%', 105, 160, { align: 'center' });
+                // Single summary line on cover
+                pdf.setFontSize(13);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`${completedGoals} of ${totalGoals} goals complete  ·  ${completionRate}% success rate  ·  ${gamificationData.streak || 0}-day streak`, 105, 120, { align: 'center' });
 
                 // OVERVIEW PAGE
                 pdf.addPage();
@@ -244,7 +278,7 @@
                     pdf.setFillColor(224, 224, 224);
                     pdf.rect(20, yPos + 2, 100, 4, 'F');
                     pdf.setFillColor(10, 10, 10);
-                    pdf.rect(20, yPos + 2, percentage, 4, 'F');
+                    pdf.rect(20, yPos + 2, Math.min(percentage, 100), 4, 'F');
                     
                     yPos += 12;
                 });
@@ -275,13 +309,14 @@
                                 yPos = 20;
                             }
 
-                            // Goal title
+                            // Goal title — split long titles so they don't run off the page
                             pdf.setFontSize(12);
                             pdf.setTextColor(51, 51, 51);
                             const status = goal.completed ? '[X]' : '[ ]';
-                            pdf.text(`${status} ${cleanTextForPDF(goal.title)}`, 20, yPos);
-                            
-                            yPos += 8;
+                            const titleLines = pdf.splitTextToSize(`${status} ${cleanTextForPDF(goal.title)}`, 170);
+                            pdf.text(titleLines, 20, yPos);
+
+                            yPos += titleLines.length * 6;
 
                             // Goal description
                             if (goal.description) {
@@ -293,11 +328,17 @@
                                 yPos += descLines.length * 5 + 3;
                             }
 
-                            // Date
+                            // Dates
                             pdf.setFontSize(9);
                             pdf.setTextColor(153, 153, 153);
-                            pdf.text('Created: ' + new Date(goal.createdAt).toLocaleDateString(), 25, yPos);
-                            
+                            let dateLine = 'Created: ' + new Date(goal.createdAt).toLocaleDateString();
+                            if (goal.deadline) {
+                                const deadlineDate = new Date(goal.deadline);
+                                const isOverdue = !goal.completed && deadlineDate < new Date();
+                                dateLine += '   |   Due: ' + deadlineDate.toLocaleDateString() + (isOverdue ? ' (OVERDUE)' : '');
+                            }
+                            pdf.text(dateLine, 25, yPos);
+
                             yPos += 12;
 
                             // Draw separator
@@ -329,8 +370,13 @@
                     
                     unlockedAchievements.forEach(achievement => {
                         const symbol = ACHIEVEMENT_SYMBOLS[achievement.id] || '[*]';
-                        pdf.text(`${symbol} ${achievement.name}`, 20, yPos);
+                        const unlockedEntry = gamificationData.unlockedAchievements.find(a => a.id === achievement.id);
+                        const unlockedDate = unlockedEntry ? '  —  ' + new Date(unlockedEntry.unlockedAt).toLocaleDateString() : '';
+                        pdf.text(`${symbol} ${achievement.name}  +${achievement.xp} XP${unlockedDate}`, 20, yPos);
                         yPos += 10;
+
+                        // New page if running out of space
+                        if (yPos > 270) { pdf.addPage(); yPos = 20; }
                     });
                 }
 
@@ -340,8 +386,7 @@
 
                 // Hide loading
                 document.getElementById('loadingOverlay').classList.remove('show');
-
-                alert('PDF generated successfully! ');
+                showExportSuccess();
             } catch (error) {
                 console.error('Error generating PDF:', error);
                 document.getElementById('loadingOverlay').classList.remove('show');
@@ -351,6 +396,7 @@
 
         // EXPORT TEXT
         function exportText() {
+            if (!checkHasData()) return;
             let text = `LIFE AUDIT REPORT\n`;
             text += `Generated: ${currentDate.toLocaleString()}\n`;
             text += `${'='.repeat(50)}\n\n`;
@@ -371,13 +417,18 @@
                 const categoryGoals = goals.filter(g => g.category === categoryKey);
 
                 if (categoryGoals.length > 0) {
-                    text += `\n${category.icon} ${category.name.toUpperCase()}\n`;
+                    text += `\n${category.name.toUpperCase()}\n`;
                     text += `${'-'.repeat(50)}\n`;
 
                     categoryGoals.forEach((goal, index) => {
                         text += `${index + 1}. [${goal.completed ? 'X' : ' '}] ${goal.title}\n`;
                         if (goal.description) {
                             text += `   ${goal.description}\n`;
+                        }
+                        if (goal.deadline) {
+                            const deadlineDate = new Date(goal.deadline);
+                            const isOverdue = !goal.completed && deadlineDate < new Date();
+                            text += `   Due: ${deadlineDate.toLocaleDateString()}${isOverdue ? ' (OVERDUE)' : ''}\n`;
                         }
                     });
                 }
@@ -392,7 +443,7 @@
             link.click();
 
             URL.revokeObjectURL(url);
-            alert(' Text summary exported successfully!');
+            showExportSuccess();
         }
 
         // INITIALIZER
