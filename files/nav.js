@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { href: 'calendar.html',        icon: 'calendar',      label: 'Calendar' },
   { href: 'timeline.html',        icon: 'clock',         label: 'Timeline' },
   { href: 'achievements.html',    icon: 'trophy',        label: 'Achievements' },
-  { href: 'recommendations.html', icon: 'lightbulb',     label: 'Resources' },
+  { href: 'recommendations.html', icon: 'lightbulb',     label: 'Recommendations' },
   { href: 'export.html',          icon: 'file-text',     label: 'Export' },
 ];
 
