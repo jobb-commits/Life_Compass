@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Audit System - Achievements</title>
+    <title>Life Compass - Achievements</title>
     <link rel="stylesheet" href="styles.css">
   <style>
     .achievements-grid {
@@ -32,7 +32,7 @@
       border-color: var(--black);
     }
 
-    /* ── Art panel ── */
+    /* Art panel */
     .achievement-art {
       position: relative;
       width: 100%;
@@ -49,13 +49,13 @@
       transition: filter 0.6s ease, transform 0.4s ease;
     }
 
-    /* Locked = greyscale, slightly zoomed out */
+    /* If achievement locked, art = greyscale,also slightly zoomed out */
     .achievement-card.locked .achievement-art img {
       filter: grayscale(100%) brightness(0.6);
       transform: scale(1.0);
     }
 
-    /* Earned = full colour, gentle zoom */
+    /* If achievement unlocked art = full colour, gentle zoom */
     .achievement-card.earned .achievement-art img {
       filter: none;
       transform: scale(1.04);
@@ -153,7 +153,7 @@
     .earned-meta { color: var(--black); }
     .locked-meta { color: var(--gray-300); }
 
-    /* ── Unlock shimmer animation ── */
+    
     @keyframes colourUnlock {
       0%   { filter: grayscale(100%) brightness(0.6); }
       40%  { filter: grayscale(0%)   brightness(1.15); }
@@ -225,7 +225,7 @@
 
     <script>
         
-        // list of all attainable achievements
+        // list of attainable achievements
         
         const ACHIEVEMENTS = [
             {
@@ -288,7 +288,7 @@
                 id: 'legend',
                 name: 'Legend',
                 description: 'Complete 100 total goals',
-                requirement: (stats) => stats.totalCompleted >= 100,
+                requirement: (stats) => stats.completedGoals >= 100,
                 xp: 5000
           },
             {
@@ -313,24 +313,24 @@
                 xp: 3000
             },
             {
-                id: 'marathon',
-                name: 'Marathon Runner',
+                id: 'sixty_strong',
+                name: 'Sixty Strong',
                 description: 'Maintain a 60-day streak',
                 requirement: (stats) => stats.streak >= 60,
-                xp: 1500
+                xp: 5000
             },
             {
-                id: 'centurion',
-                name: 'Centurion',
+                id: 'the_100',
+                name: 'The 100',
                 description: 'Maintain a 100-day streak',
                 requirement: (stats) => stats.streak >= 100,
-                xp: 3000
+                xp: 10000
             },
             {
                 id: 'comeback',
                 name: 'Comeback King',
                 description: 'Restart your streak after missing a day',
-                requirement: (stats) => stats.comeback >= 1,
+                requirement: (stats) => stats.recoveredNextDay >= 1,
                 xp: 300
             },
             {
@@ -344,7 +344,7 @@
                id: 'phoenix',
                name: 'Phoenix',
                description: 'Recover from 3 broken streaks',
-               requirement: (stats) => stats.recoveryCount >= 3,
+               requirement: (stats) => stats.brokenStreaks >= 3,
                xp: 803
             },
             {
@@ -463,13 +463,34 @@
                 if (missedYesterday && workedDayBefore) recoveredNextDay++;
             });
 
+            // "Speed Runner" — most goals completed in a single day
+            const goalsInOneDay = completionDaySet.size > 0
+                ? Math.max(...[...completionDaySet].map(day =>
+                    goals.filter(g => g.completed && g.completedAt &&
+                        new Date(g.completedAt).toDateString() === day).length
+                  ))
+                : 0;
+
+            // "Ghost" (hidden) — completed a goal between midnight and 3 AM
+            const midnightCompletion = goals.filter(g => {
+                if (!g.completed || !g.completedAt) return false;
+                const hour = new Date(g.completedAt).getHours();
+                return hour >= 0 && hour < 3;
+            }).length;
+
+            // "Phoenix" — number of times a streak has been broken (tracked in updateStreak)
+            const brokenStreaks = gamificationData.brokenStreaks || 0;
+
             return {
                 totalGoals,
                 completedGoals,
                 categoriesUsed,
                 categoryCompleted,
                 streak: gamificationData.streak,
-                recoveredNextDay
+                recoveredNextDay,
+                goalsInOneDay,
+                midnightCompletion,
+                brokenStreaks
             };
         }
 
@@ -539,8 +560,9 @@
                     // Consecutive day!
                     gamificationData.streak++;
                 } else if (diffDays > 1) {
-                    // Streak broken
+                    // Streak broken — track count for Phoenix achievement
                     gamificationData.streak = 1;
+                    gamificationData.brokenStreaks = (gamificationData.brokenStreaks || 0) + 1;
                 }
 
                 gamificationData.lastActiveDate = today;
@@ -609,8 +631,8 @@
             well_rounded:     'master_of_balance.jpg',
             week_warrior:     'weekend_warrior.jpg',
             dedication:       'streak_guardian.jpg',
-            marathon:         'marathon_runner.jpg',
-            centurion:        'centurion.jpg',
+            sixty_strong:     'marathon_runner.jpg',
+            the_100:          'centurion.jpg',
             comeback:         'comeback_king.jpg',
             never_miss_twice: 'never_miss_twice.jpg',
             phoenix:          'phoenix.jpg',
