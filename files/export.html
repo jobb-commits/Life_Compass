@@ -128,34 +128,13 @@
             { id: 'ghost',            name: '???',               xp: 777   },
         ];
 
-        // PDF-friendly achievement symbols (emojis do not render in jsPDF)
-        const ACHIEVEMENT_SYMBOLS = {
-            'first_goal':       '[*]',
-            'goal_getter':      '[+]',
-            'ambitious':        '[^]',
-            'first_win':        '[X]',
-            'speed_runner':     '[>]',
-            'on_fire':          '[~]',
-            'unstoppable':      '[!]',
-            'completionist':    '[=]',
-            'legend':           '[L]',
-            'well_rounded':     '[#]',
-            'week_warrior':     '[W]',
-            'dedication':       '[@]',
-            'sixty_strong':     '[S]',
-            'the_100':          '[C]',
-            'comeback':         '[<]',
-            'never_miss_twice': '[N]',
-            'phoenix':          '[P]',
-            'ghost':            '[?]',
-        };
 
         const CATEGORIES = {
-            career: { name: 'Career/Education', icon: '💼' },
-            health: { name: 'Health & Fitness', icon: '💪' },
-            finance: { name: 'Finance', icon: '💰' },
-            relationships: { name: 'Relationships/Social', icon: '❤️' },
-            hobbies: { name: 'Skills/Hobbies', icon: '🎨' }
+            career: { name: 'Career/Education'},
+            health: { name: 'Health & Fitness'},
+            finance: { name: 'Finance' },
+            relationships: { name: 'Relationships/Social'},
+            hobbies: { name: 'Skills/Hobbies'}
         };
 
         // PDF-friendly category labels (no emojis)
@@ -369,10 +348,9 @@
                     pdf.setTextColor(51, 51, 51);
                     
                     unlockedAchievements.forEach(achievement => {
-                        const symbol = ACHIEVEMENT_SYMBOLS[achievement.id] || '[*]';
                         const unlockedEntry = gamificationData.unlockedAchievements.find(a => a.id === achievement.id);
                         const unlockedDate = unlockedEntry ? '  —  ' + new Date(unlockedEntry.unlockedAt).toLocaleDateString() : '';
-                        pdf.text(`${symbol} ${achievement.name}  +${achievement.xp} XP${unlockedDate}`, 20, yPos);
+                        pdf.text(`${achievement.name}  +${achievement.xp} XP${unlockedDate}`, 20, yPos);
                         yPos += 10;
 
                         // New page if running out of space
