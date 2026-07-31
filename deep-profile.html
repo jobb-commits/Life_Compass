@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life Compass-Deep Profile</title>
+  <style>
+
+    .page-header {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 28px 36px;
+      margin-bottom: 20px;
+      border: 1px solid var(--gray-200);
+    }
+
+    .page-header h1 { font-size: 32px; margin-bottom: 4px; }
+
+    .page-header .subtitle {
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      color: var(--gray-500);
+      font-size: 15px;
+      margin-bottom: 18px;
+    }
+
+    /*Step progress bar*/
+    .steps-bar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .step-pip {
+      height: 3px;
+      flex: 1;
+      background: var(--gray-200);
+      border-radius: 2px;
+      transition: background 0.3s;
+    }
+
+    .step-pip.done { background: var(--black); }
+
+    .steps-label {
+      font-size: 11px;
+      color: var(--gray-500);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /*Section panels*/
+    .dp-section {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      margin-bottom: 20px;
+      border: 1px solid var(--gray-200);
+    }
+
+    .dp-section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1.5px solid var(--gray-200);
+    }
+
+    .section-number {
+      font-family: 'DM Serif Display', serif;
+      font-size: 42px;
+      line-height: 1;
+      color: var(--gray-200);
+      flex-shrink: 0;
+      width: 48px;
+      text-align: right;
+    }
+
+    .section-meta { flex: 1; }
+
+    .section-meta h2 {
+      font-size: 22px;
+      color: var(--black);
+      margin-bottom: 5px;
+    }
+
+    .section-meta p {
+      font-size: 13px;
+      color: var(--gray-500);
+      line-height: 1.55;
+      font-style: italic;
+      font-family: 'DM Serif Display', serif;
+    }
+
+    /*Form elements*/
+    .dp-field { margin-bottom: 24px; }
+
+    .dp-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+
+    .dp-field .hint {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-bottom: 8px;
+      font-style: italic;
+      font-family: 'DM Serif Display', serif;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      display: block;
+    }
+
+    .dp-field textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      resize: vertical;
+      min-height: 72px;
+      transition: border-color 0.18s;
+      color: var(--black);
+    }
+
+    .dp-field textarea:focus {
+      outline: none;
+      border-color: var(--black);
+    }
+
+    .dp-field select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--white);
+      color: var(--black);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      cursor: pointer;
+    }
+
+    .dp-field select:focus {
+      outline: none;
+      border-color: var(--black);
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+
+    .slider-area-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--black);
+    }
+
+    .slider-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 24px;
+      color: var(--black);
+      min-width: 36px;
+      text-align: center;
+      line-height: 1;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--gray-200);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--black);
+      cursor: pointer;
+      border: 3px solid var(--white);
+      box-shadow: 0 0 0 1.5px var(--black);
+      transition: transform 0.15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--black);
+      cursor: pointer;
+      border: 3px solid var(--white);
+      box-shadow: 0 0 0 1.5px var(--black);
+    }
+
+    /* Wheel for level of satisfaction, not working currently. Fix during css implementation(slider visibility that is) */
+    .wheel-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .radar-container {
+      display: flex;
+      justify-content: center;
+    }
+
+    #radarCanvas {
+      width: 100%;
+      max-width: 300px;
+      aspect-ratio: 1;
+    }
+
+    .slider-panel { flex: 1; }
+
+    .wheel-area-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .wheel-area-name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      min-width: 140px;
+      color: var(--black);
+    }
+
+    .wheel-area-slider { flex: 1; }
+
+    .wheel-area-val {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px;
+      min-width: 24px;
+      text-align: right;
+      color: var(--black);
+    }
+
+    .goal-why-card {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 22px 24px;
+      margin-bottom: 14px;
+      transition: border-color 0.18s;
+    }
+
+    .goal-why-card:hover { border-color: var(--gray-300); }
+
+    .goal-why-title {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--black);
+    }
+
+    .goal-why-category {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--gray-500);
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .goal-why-fields { display: flex; flex-direction: column; gap: 12px; }
+
+    .no-goals-msg {
+      border: 1.5px dashed var(--gray-300);
+      border-radius: var(--radius-md);
+      padding: 28px;
+      text-align: center;
+      color: var(--gray-500);
+      font-style: italic;
+      font-family: 'DM Serif Display', serif;
+      font-size: 15px;
+    }
+
+    .no-goals-msg a {
+      color: var(--black);
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /*multi-select options*/
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 7px 16px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      background: var(--white);
+      color: var(--black);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .chip:hover { border-color: var(--black); }
+
+    .chip.selected {
+      background: var(--black);
+      color: var(--white);
+      border-color: var(--black);
+    }
+
+    .skills-input-wrap { position: relative; }
+
+    .skills-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 44px;
+      padding: 8px 10px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      cursor: text;
+      transition: border-color 0.18s;
+    }
+
+    .skills-tags:focus-within { border-color: var(--black); }
+
+    .skill-tag {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--black);
+      color: var(--white);
+      padding: 3px 10px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .skill-tag-remove {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s;
+    }
+
+    .skill-tag-remove:hover { color: var(--white); }
+
+    .skill-input-field {
+      border: none;
+      outline: none;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      flex: 1;
+      min-width: 100px;
+      background: transparent;
+      color: var(--black);
+      padding: 2px 4px;
+    }
+
+    .tools-input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--black);
+    }
+
+    .tools-input:focus {
+      outline: none;
+      border-color: var(--black);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .energy-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .energy-field label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--gray-700);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .energy-field input[type="number"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 22px;
+      font-family: 'DM Serif Display', serif;
+      color: var(--black);
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+
+    .energy-field input[type="number"]::-webkit-outer-spin-button,
+    .energy-field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .energy-field input:focus { outline: none; border-color: var(--black); }
+
+    .save-bar {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 24px 36px;
+      margin-bottom: 20px;
+      border: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .save-bar-left {
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      color: var(--gray-500);
+      font-size: 14px;
+    }
+
+    .save-bar-right { display: flex; gap: 10px; }
+
+    .save-status {
+      font-size: 12px;
+      color: var(--gray-500);
+      letter-spacing: 0.04em;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+      align-self: center;
+    }
+
+    .save-status.show { opacity: 1; }
+    
+    @media (max-width: 720px) {
+      .wheel-wrap { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      .energy-row { grid-template-columns: 1fr 1fr; }
+      .dp-section { padding: 22px 18px; }
+      .save-bar { flex-direction: column; align-items: stretch; }
+      .save-bar-right { flex-direction: column; align-items: stretch; width: 100%; }
+      .save-bar-right .btn { width: 100%; text-align: center; }
+      .save-status { align-self: flex-start; }
+      .section-number { font-size: 32px; }
+    }
+
+    @media (max-width: 480px) {
+      .wheel-area-name { min-width: 110px; font-size: 11px; }
+      .energy-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="page-header">
+      <h1>Deep Profile</h1>
+      <p class="subtitle">The context that turns generic advice into a plan built specifcally for YOU</p>
+    </div>
+
+    <!-- 
+         SECTION 1 : The "Why" Behind Goals
+     -->
+    <div class="dp-section">
+      <div class="dp-section-header">
+        <div class="section-number">1</div>
+        <div class="section-meta">
+          <h2>The "Why" Behind Your Goals</h2>
+          <p> A goal needs a heartbeat to survive the daily grind. By sharing what truly drives you, the AI can offer more meaningful inspiration and help you find your footing when things get tough.</p>
+        </div>
+      </div>
+
+      <div id="goalWhyContainer">
+        <div class="no-goals-msg">
+          No goals found. <a href="goals.html">Add some goals first</a> and they'll appear here.
+        </div>
+      </div>
+    </div>
+
+    <!-- 
+         SECTION 2 : Life Satisfaction Wheel
+     -->
+    <div class="dp-section">
+      <div class="dp-section-header">
+        <div class="section-number">2</div>
+        <div class="section-meta">
+          <h2>Current Life Assessment</h2>
+          <p>Be open and sincere about your current standing in each category. This allows the AI to calculate your growth potential and highlight the most impactful areas for you to tackle right now.</p>
+        </div>
+      </div>
+
+      <div class="wheel-wrap">
+        <!-- Radar chart -->
+        <div class="radar-container">
+          <canvas id="radarCanvas" width="300" height="300"></canvas>
+        </div>
+
+        <!-- Sliders -->
+        <div class="slider-panel" id="wheelSliders">
+        </div>
+      </div>
+
+      <!-- Energy & Focus Audit -->
+      <div style="margin-top:32px;padding-top:24px;border-top:1.5px solid var(--gray-200);">
+        <h3 style="font-size:16px;margin-bottom:6px;">Energy & Focus Audit</h3>
+        <p style="font-size:13px;color:var(--gray-500);font-style:italic;font-family:'DM Serif Display',serif;margin-bottom:16px;">Understanding your energy patterns helps plan when and how you work toward goals.</p>
+
+        <div class="energy-row">
+          <div class="energy-field">
+            <label>Focused Hours / Day</label>
+            <input type="number" id="focusHours" min="0" max="16" placeholder="4">
+          </div>
+          <div class="energy-field">
+            <label>Sleep Hours / Night</label>
+            <input type="number" id="sleepHours" min="0" max="12" placeholder="7">
+          </div>
+          <div class="energy-field">
+            <label>Peak Productive Time</label>
+            <select id="peakTime" style="font-size:14px;padding:11px 14px;height:58px;">
+              <option value="">Select...</option>
+              <option value="early-morning">Early morning (5–9am)</option>
+              <option value="morning">Morning (9am–12pm)</option>
+              <option value="afternoon">Afternoon (12–5pm)</option>
+              <option value="evening">Evening (5–9pm)</option>
+              <option value="night">Late night (9pm+)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 
+         SECTION 3 : Constraints & Reality Check
+    -->
+    <div class="dp-section">
+      <div class="dp-section-header">
+        <div class="section-number">3</div>
+        <div class="section-meta">
+          <h2>Constraints & Reality Check</h2>
+          <p>An AI plan is useless if it ignores your actual life.</p>
+        </div>
+      </div>
+
+      <div class="dp-field">
+        <label>Free Time for Goals</label>
+        <span class="hint">On a typical week, how many hours can you realistically dedicate to working on your goals?</span>
+        <div class="wheel-area-row" style="margin-bottom:0;">
+          <div class="wheel-area-slider">
+            <input type="range" id="freeTimeHours" min="1" max="40" value="10" oninput="document.getElementById('freeTimeVal').textContent=this.value">
+          </div>
+          <div class="wheel-area-val" id="freeTimeVal">10</div>
+          <span style="font-size:12px;color:var(--gray-500);white-space:nowrap;">hrs / week</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:11px;color:var(--gray-500);">1 hr</span>
+          <span style="font-size:11px;color:var(--gray-500);">40 hrs</span>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="dp-field">
+          <label>When is most of that free time?</label>
+          <select id="freeTimeWhen">
+            <option value="">Select...</option>
+            <option value="weekday-mornings">Weekday mornings</option>
+            <option value="weekday-evenings">Weekday evenings</option>
+            <option value="weekends">Mostly weekends</option>
+            <option value="spread">Spread throughout the week</option>
+            <option value="irregular">Irregular / unpredictable</option>
+          </select>
+        </div>
+
+        <div class="dp-field">
+          <label>Financial Runway</label>
+          <span class="hint">If you needed to rely only on your savings, how long could you cover your monthly expenses?</span>
+          <select id="financialRunway">
+            <option value="">Select...</option>
+            <option value="0">None (living paycheck to paycheck)</option>
+            <option value="1-3">1–3 months</option>
+            <option value="3-6">3–6 months</option>
+            <option value="6-12">6–12 months</option>
+            <option value="12+">12+ months</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="dp-field">
+        <label>Non-Negotiable Commitments</label>
+        <span class="hint">List the obligations that your plan must work around. e.g., "Full-time job 9 to 5", "Young children at home".</span>
+        <textarea id="obligations" placeholder="Full-time job, Mon–Fri 8am–6pm&#10;Weekly family obligation on Sundays"></textarea>
+      </div>
+
+      <div class="dp-field">
+        <label>Biggest Foreseeable Barrier</label>
+        <span class="hint">What's the single biggest obstacle you expect on the path to your most important short-term goal?</span>
+        <div class="chip-group" id="barrierChips">
+          <div class="chip" data-value="time">Not enough time</div>
+          <div class="chip" data-value="money">Financial constraints</div>
+          <div class="chip" data-value="skill">Lack of skill / knowledge</div>
+          <div class="chip" data-value="fear">Fear or procrastination</div>
+          <div class="chip" data-value="support">Lack of support</div>
+          <div class="chip" data-value="clarity">Unclear next steps</div>
+          <div class="chip" data-value="energy">Low energy / burnout</div>
+        </div>
+        <input type="hidden" id="barrierValue">
+      </div>
+    </div>
+
+    <!-- 
+         SECTION 4 : Personality & Learning Style
+    -->
+    <div class="dp-section">
+      <div class="dp-section-header">
+        <div class="section-number">4</div>
+        <div class="section-meta">
+          <h2>Personality & Learning Style</h2>
+          <p>Turns generic advice into advice that actually fits how you think, decide and learn.</p>
+        </div>
+      </div>
+
+      <div class="dp-field">
+        <label>Decision-Making Style</label>
+        <span class="hint">When facing a big decision, how do you typically approach it?</span>
+        <div class="chip-group" data-single="true" id="decisionChips">
+          <div class="chip" data-value="logic">Logic & data</div>
+          <div class="chip" data-value="intuition">Gut feeling & intuition</div>
+          <div class="chip" data-value="people">Advice from trusted people</div>
+          <div class="chip" data-value="mixed">A mix of all three</div>
+        </div>
+        <input type="hidden" id="decisionStyle">
+      </div>
+
+      <div class="dp-field">
+        <label>Accountability Style</label>
+        <span class="hint">How do you best stick to commitments? Select all that apply.</span>
+        <div class="chip-group" id="accountabilityChips">
+          <div class="chip" data-value="self">Silent self-discipline</div>
+          <div class="chip" data-value="public">Public commitment / social pressure</div>
+          <div class="chip" data-value="partner">Regular check-ins with a partner</div>
+          <div class="chip" data-value="gamification">Gamification & rewards</div>
+          <div class="chip" data-value="tracking">Visual progress tracking</div>
+          <div class="chip" data-value="deadline">Hard deadlines</div>
+        </div>
+        <input type="hidden" id="accountabilityStyle">
+      </div>
+
+      <div class="dp-field">
+        <label>Learning Preference</label>
+        <span class="hint">How do you learn new skills most effectively? Select all that apply.</span>
+        <div class="chip-group" id="learningChips">
+          <div class="chip" data-value="reading">Reading & watching videos</div>
+          <div class="chip" data-value="projects">Hands-on projects</div>
+          <div class="chip" data-value="courses">Formal courses</div>
+          <div class="chip" data-value="coaching">1-on-1 coaching or mentoring</div>
+          <div class="chip" data-value="community">Peer learning</div>
+          <div class="chip" data-value="trial-error">Trial and error</div>
+        </div>
+        <input type="hidden" id="learningStyle">
+      </div>
+
+      <div class="two-col">
+        <div class="dp-field">
+          <label>Risk Tolerance</label>
+          <span class="hint">For career or financial goals, where do you sit?</span>
+          <div class="chip-group" data-single="true" id="riskChips">
+            <div class="chip" data-value="conservative">Play it safe & slow</div>
+            <div class="chip" data-value="moderate">Balanced approach</div>
+            <div class="chip" data-value="aggressive">High risk, high reward</div>
+          </div>
+          <input type="hidden" id="riskTolerance">
+        </div>
+
+        <div class="dp-field">
+          <label>Goal Orientation</label>
+          <span class="hint">What drives you most when working toward a goal?</span>
+          <div class="chip-group" data-single="true" id="motivationChips">
+            <div class="chip" data-value="achievement">Achieving the outcome</div>
+            <div class="chip" data-value="growth">Personal growth</div>
+            <div class="chip" data-value="impact">Impact on others</div>
+            <div class="chip" data-value="freedom">Freedom & autonomy</div>
+            <div class="chip" data-value="proveOthersWrong">Silencing your doubters</div>
+          </div>
+          <input type="hidden" id="goalMotivation">
+        </div>
+      </div>
+    </div>
+
+    <!--
+         SECTION 5: Resources & Assets
+    -->
+    <div class="dp-section">
+      <div class="dp-section-header">
+        <div class="section-number">5</div>
+        <div class="section-meta">
+          <h2>Resources & Assets</h2>
+          <p>The AI should leverage what you already have and not just highlight what's missing. Your existing strengths are often your fastest path forward.</p>
+        </div>
+      </div>
+
+      <div class="dp-field">
+        <label>Top Skills</label>
+        <span class="hint">What are 3–5 things you're genuinely good at? Can be professional or personal.</span>
+        <div class="skills-tags" id="skillsTags" onclick="document.getElementById('skillInput').focus()">
+          <input type="text" id="skillInput" class="skill-input-field" placeholder="Type a skill and press Enter..." enterkeyhint="done">
+        </div>
+        <input type="hidden" id="topSkills">
+      </div>
+
+      <div class="dp-field">
+        <label>Existing Tools & Subscriptions</label>
+        <span class="hint">Which productivity, learning or finance tools are already part of your routine?</span>
+        <input type="text" class="tools-input" id="existingTools" placeholder="e.g., Notion, Anki, Spotify, Google Calendar">
+      </div>
+
+      <div class="dp-field">
+        <label>Network & Support</label>
+        <span class="hint">Do you have people you can lean on for this journey?</span>
+        <div class="chip-group" id="networkChips">
+          <div class="chip" data-value="mentor">A mentor in my field</div>
+          <div class="chip" data-value="peers">Supportive peer group</div>
+          <div class="chip" data-value="professional-network">Professional network (LinkedIn etc.)</div>
+          <div class="chip" data-value="partner">Supportive partner or spouse</div>
+          <div class="chip" data-value="family">Supportive family</div>
+          <div class="chip" data-value="none">Working mostly solo right now</div>
+        </div>
+        <input type="hidden" id="networkSupport">
+      </div>
+
+      <div class="dp-field">
+        <label>Anything else the AI should know?</label>
+        <span class="hint">Health conditions, major life transitions, cultural context. Anything that shapes your situation and should influence the recommendations.</span>
+        <textarea id="additionalContext" style="min-height:90px;" placeholder="e.g., I'm currently going through a career transition after 10 years in one field. I have a chronic condition that limits my physical energy in the afternoons..."></textarea>
+      </div>
+    </div>
+
+  
+    <div class="save-bar">
+      <div class="save-bar-left">Your answers stay private in your browser. Nothing is sent anywhere.</div>
+      <div class="save-bar-right">
+        <span class="save-status" id="saveStatus">Saved</span>
+        <button class="btn btn-secondary" onclick="loadProfile()">Load Saved</button>
+        <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+        <a href="goals.html" class="btn btn-primary">Create Some Goals</a>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+
+  <script>
+ // Data definitions
+
+  const WHEEL_AREAS = [
+    { id: 'health',       label: 'Health & Fitness' },
+    { id: 'finances',     label: 'Finances & Wealth' },
+    { id: 'career',       label: 'Career & Growth' },
+    { id: 'relationships',label: 'Relationships' },
+    { id: 'hobbies',      label: 'Fun & Hobbies' },
+    { id: 'purpose',      label: 'Spirituality & Purpose' },
+    { id: 'environment',  label: 'Home & Environment' },
+  ];
+
+  const WHY_PROMPTS = [
+    {
+      id: 'why',
+      label: 'Core motivation',
+      placeholder: 'What is the most important reason you want to achieve this? Be specific — "to feel financially secure" beats "to earn more money".',
+    },
+    {
+      id: 'origin',
+      label: 'Goal origin',
+      placeholder: 'Is this truly what you want, or does it partly come from external pressure — family expectations, social comparison, fear of judgment?',
+    },
+    {
+      id: 'vision',
+      label: 'Success visualization',
+      placeholder: 'Imagine you\'ve achieved this. What does your day-to-day life look and feel like? Describe in a few vivid words.',
+    },
+  ];
+
+ // Satisfaction wheel
+
+  const wheelValues = {};
+  WHEEL_AREAS.forEach(a => wheelValues[a.id] = 5);
+
+  function buildSliders() {
+    const panel = document.getElementById('wheelSliders');
+    panel.innerHTML = WHEEL_AREAS.map(area => `
+      <div class="wheel-area-row">
+        <div class="wheel-area-name">${area.label}</div>
+        <div class="wheel-area-slider">
+          <input type="range" min="1" max="10" value="5"
+            id="wheel_${area.id}"
+            oninput="onWheelSlider('${area.id}', this.value)">
+        </div>
+        <div class="wheel-area-val" id="wval_${area.id}">5</div>
+      </div>
+    `).join('');
+  }
+
+  function onWheelSlider(id, val) {
+    wheelValues[id] = parseInt(val);
+    document.getElementById('wval_' + id).textContent = val;
+    drawRadar();
+  }
+
+  function drawRadar() {
+    const canvas = document.getElementById('radarCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const maxR = Math.min(W, H) / 2 - 28;
+    const n = WHEEL_AREAS.length;
+    const style = getComputedStyle(document.documentElement);
+    const black = '#0a0a0a';
+    const gray200 = '#e5e5e5';
+    const gray100 = '#f3f3f3';
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Draw concentric rings
+    for (let ring = 2; ring <= 10; ring += 2) {
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+        const r = (ring / 10) * maxR;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = gray200;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // ring label
+      ctx.fillStyle = '#aaa';
+      ctx.font = '9px DM Sans, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(ring, cx + 3, cy - (ring / 10) * maxR + 4);
+    }
+
+    // Draw axis lines
+    for (let i = 0; i < n; i++) {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + maxR * Math.cos(angle), cy + maxR * Math.sin(angle));
+      ctx.strokeStyle = gray200;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Draw filled data polygon
+    ctx.beginPath();
+    WHEEL_AREAS.forEach((area, i) => {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const r = (wheelValues[area.id] / 10) * maxR;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(10,10,10,0.10)';
+    ctx.fill();
+    ctx.strokeStyle = black;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw data points
+    WHEEL_AREAS.forEach((area, i) => {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const r = (wheelValues[area.id] / 10) * maxR;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = black;
+      ctx.fill();
+    });
+
+    // Draw axis labels
+    ctx.fillStyle = black;
+    WHEEL_AREAS.forEach((area, i) => {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const labelR = maxR + 16;
+      const x = cx + labelR * Math.cos(angle);
+      const y = cy + labelR * Math.sin(angle);
+
+      ctx.font = '600 10px DM Sans, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Offset label away from center
+      const offsetX = Math.cos(angle) * 2;
+      const offsetY = Math.sin(angle) * 2;
+
+      // Wrap long labels
+      const words = area.label.split(' & ');
+      if (words.length > 1) {
+        ctx.fillText(words[0], x + offsetX, y + offsetY - 7);
+        ctx.fillText('& ' + words[1], x + offsetX, y + offsetY + 6);
+      } else {
+        ctx.fillText(area.label, x + offsetX, y + offsetY);
+      }
+    });
+  }
+
+  // GOAL "WHY" CARDS
+
+  function buildGoalWhyCards() {
+    const container = document.getElementById('goalWhyContainer');
+    const saved = localStorage.getItem('lifeAuditGoals');
+    if (!saved) return;
+
+    let goals;
+    try { goals = JSON.parse(saved); } catch(e) { return; }
+    if (!goals || !goals.length) return;
+
+    container.innerHTML = goals.map(goal => `
+      <div class="goal-why-card">
+        <div class="goal-why-title">${escapeHtml(goal.title || 'Untitled goal')}</div>
+        <div class="goal-why-category">${goal.category || 'General'} · ${goal.type || ''}</div>
+        <div class="goal-why-fields">
+          ${WHY_PROMPTS.map(p => `
+            <div>
+              <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-700);display:block;margin-bottom:5px;">${p.label}</label>
+              <textarea class="goal-why-input"
+                data-goal-id="${escapeHtml(goal.id || goal.title)}"
+                data-prompt="${p.id}"
+                placeholder="${p.placeholder}"
+                style="min-height:60px;"
+                id="why_${escapeHtml(goal.id || goal.title)}_${p.id}"
+              ></textarea>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function collectGoalWhys() {
+    const result = {};
+    document.querySelectorAll('.goal-why-input').forEach(el => {
+      const gid = el.dataset.goalId;
+      const prompt = el.dataset.prompt;
+      if (!result[gid]) result[gid] = {};
+      result[gid][prompt] = el.value;
+    });
+    return result;
+  }
+
+  function restoreGoalWhys(data) {
+    if (!data) return;
+    Object.entries(data).forEach(([gid, prompts]) => {
+      Object.entries(prompts).forEach(([prompt, val]) => {
+        const el = document.getElementById(`why_${gid}_${prompt}`);
+        if (el) el.value = val;
+      });
+    });
+  }
+
+  // Chips (selectable tags)
+
+  function initChips() {
+    document.querySelectorAll('.chip-group').forEach(group => {
+      const isSingle = group.dataset.single === 'true';
+      group.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          if (isSingle) {
+            group.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+            chip.classList.toggle('selected');
+          } else {
+            chip.classList.toggle('selected');
+          }
+          syncHiddenInput(group);
+        });
+      });
+    });
+  }
+
+  function syncHiddenInput(group) {
+    const selected = [...group.querySelectorAll('.chip.selected')].map(c => c.dataset.value);
+    // Find associated hidden input — look for next sibling or by convention
+    const hiddenId = group.id.replace('Chips', 'Value')
+                           .replace('Chips', 'Style')
+                           .replace('Chips', 'Tolerance')
+                           .replace('Chips', 'Motivation')
+                           .replace('Chips', 'Support');
+    // Fallback: map by group id
+    const hiddenMap = {
+      barrierChips:       'barrierValue',
+      decisionChips:      'decisionStyle',
+      accountabilityChips:'accountabilityStyle',
+      learningChips:      'learningStyle',
+      riskChips:          'riskTolerance',
+      motivationChips:    'goalMotivation',
+      networkChips:       'networkSupport',
+    };
+    const targetId = hiddenMap[group.id];
+    if (targetId) document.getElementById(targetId).value = selected.join(',');
+  }
+
+  function restoreChips(groupId, value) {
+    if (!value) return;
+    const values = value.split(',');
+    const group = document.getElementById(groupId);
+    if (!group) return;
+    group.querySelectorAll('.chip').forEach(chip => {
+      if (values.includes(chip.dataset.value)) chip.classList.add('selected');
+    });
+  }
+
+  //Skills Input
+
+  let skills = [];
+
+  function initSkillInput() {
+    const input = document.getElementById('skillInput');
+
+    // Desktop / hardware keyboards: normal keydown works fine here.
+    input.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
+        e.preventDefault();
+        addSkill(input.value.trim().replace(/,/g, ''));
+        input.value = '';
+      }
+      if (e.key === 'Backspace' && !input.value && skills.length) {
+        removeSkill(skills[skills.length - 1]);
+      }
+    });
+
+    // Ran into an issue where on mobile, the "done" button on the keyboard doesn't trigger keydown events, so we need to also listen for input events and check for newlines or commas.
+    input.addEventListener('input', () => {
+      if (input.value.includes('\n')) {
+        const value = input.value.replace(/\n/g, '').trim();
+        input.value = '';
+        if (value) addSkill(value.replace(/,/g, ''));
+      } else if (input.value.includes(',')) {
+        const value = input.value.replace(/,/g, '').trim();
+        input.value = '';
+        if (value) addSkill(value);
+      }
+    });
+  }
+
+  function addSkill(name) {
+    if (!name || skills.includes(name)) return;
+    skills.push(name);
+    renderSkillTags();
+  }
+
+  function removeSkill(name) {
+    skills = skills.filter(s => s !== name);
+    renderSkillTags();
+  }
+
+  function renderSkillTags() {
+    const container = document.getElementById('skillsTags');
+    const input = document.getElementById('skillInput');
+    container.innerHTML = '';
+    skills.forEach(skill => {
+      const tag = document.createElement('div');
+      tag.className = 'skill-tag';
+      tag.innerHTML = `${escapeHtml(skill)}<button class="skill-tag-remove" onclick="removeSkill('${escapeHtml(skill)}')" type="button">×</button>`;
+      container.appendChild(tag);
+    });
+    container.appendChild(input);
+    document.getElementById('topSkills').value = skills.join(',');
+  }
+
+ // Save and load
+
+  function gatherData() {
+    return {
+      goalWhys:          collectGoalWhys(),
+      wheelValues:       { ...wheelValues },
+      focusHours:        document.getElementById('focusHours').value,
+      sleepHours:        document.getElementById('sleepHours').value,
+      peakTime:          document.getElementById('peakTime').value,
+      freeTimeHours:     document.getElementById('freeTimeHours').value,
+      freeTimeWhen:      document.getElementById('freeTimeWhen').value,
+      financialRunway:   document.getElementById('financialRunway').value,
+      obligations:       document.getElementById('obligations').value,
+      barrierValue:      document.getElementById('barrierValue').value,
+      decisionStyle:     document.getElementById('decisionStyle').value,
+      accountabilityStyle: document.getElementById('accountabilityStyle').value,
+      learningStyle:     document.getElementById('learningStyle').value,
+      riskTolerance:     document.getElementById('riskTolerance').value,
+      goalMotivation:    document.getElementById('goalMotivation').value,
+      topSkills:         document.getElementById('topSkills').value,
+      existingTools:     document.getElementById('existingTools').value,
+      networkSupport:    document.getElementById('networkSupport').value,
+      additionalContext: document.getElementById('additionalContext').value,
+      savedAt:           new Date().toISOString(),
+    };
+  }
+
+  function saveProfile() {
+    const data = gatherData();
+    localStorage.setItem('lifeAuditDeepProfile', JSON.stringify(data));
+    const status = document.getElementById('saveStatus');
+    status.textContent = 'Saved';
+    status.classList.add('show');
+    setTimeout(() => status.classList.remove('show'), 2500);
+  }
+
+  function loadProfile() {
+    const raw = localStorage.getItem('lifeAuditDeepProfile');
+    if (!raw) {
+      alert('No saved deep profile found.');
+      return;
+    }
+    const data = JSON.parse(raw);
+
+    // Wheel
+    if (data.wheelValues) {
+      Object.entries(data.wheelValues).forEach(([id, val]) => {
+        wheelValues[id] = val;
+        const el = document.getElementById('wheel_' + id);
+        const valEl = document.getElementById('wval_' + id);
+        if (el) el.value = val;
+        if (valEl) valEl.textContent = val;
+      });
+      drawRadar();
+    }
+
+    // Simple fields
+    const fields = ['focusHours','sleepHours','peakTime','freeTimeWhen',
+                    'financialRunway','obligations','existingTools','additionalContext'];
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data[id] !== undefined) el.value = data[id];
+    });
+
+    // Free time slider
+    if (data.freeTimeHours) {
+      document.getElementById('freeTimeHours').value = data.freeTimeHours;
+      document.getElementById('freeTimeVal').textContent = data.freeTimeHours;
+    }
+
+    // Chips
+    const chipMap = {
+      barrierChips:        'barrierValue',
+      decisionChips:       'decisionStyle',
+      accountabilityChips: 'accountabilityStyle',
+      learningChips:       'learningStyle',
+      riskChips:           'riskTolerance',
+      motivationChips:     'goalMotivation',
+      networkChips:        'networkSupport',
+    };
+    Object.entries(chipMap).forEach(([groupId, fieldId]) => {
+      // Clear first
+      document.getElementById(groupId)?.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      restoreChips(groupId, data[fieldId]);
+      if (data[fieldId]) document.getElementById(fieldId).value = data[fieldId];
+    });
+
+    // Skills
+    if (data.topSkills) {
+      skills = data.topSkills.split(',').filter(Boolean);
+      renderSkillTags();
+    }
+
+    // Goal whys
+    restoreGoalWhys(data.goalWhys);
+
+    const status = document.getElementById('saveStatus');
+    status.textContent = 'Loaded';
+    status.classList.add('show');
+    setTimeout(() => status.classList.remove('show'), 2500);
+  }
+
+  let autoSaveTimer;
+  function scheduleAutoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(saveProfile, 1200);
+  }
+
+
+  document.addEventListener('DOMContentLoaded', () => {
+    buildSliders();
+    drawRadar();
+    buildGoalWhyCards();
+    initChips();
+    initSkillInput();
+
+    // Auto-load if saved data exists
+    if (localStorage.getItem('lifeAuditDeepProfile')) loadProfile();
+
+    // Auto-save listeners
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('change', scheduleAutoSave);
+      el.addEventListener('input', scheduleAutoSave);
+    });
+
+    // Redraw radar on resize
+    window.addEventListener('resize', drawRadar);
+  });
+  </script>
+  <script src="nav.js"></script>
+</body>
+</html>
