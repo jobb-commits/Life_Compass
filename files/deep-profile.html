@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Life Compass-Deep Profile</title>
   <style>
@@ -864,104 +865,51 @@
     drawRadar();
   }
 
+  let radarChart = null;
+
   function drawRadar() {
-    const canvas = document.getElementById('radarCanvas');
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    const cx = W / 2, cy = H / 2;
-    const maxR = Math.min(W, H) / 2 - 28;
-    const n = WHEEL_AREAS.length;
-    const style = getComputedStyle(document.documentElement);
-    const black = '#0a0a0a';
-    const gray200 = '#e5e5e5';
-    const gray100 = '#f3f3f3';
+    const ctx = document.getElementById('radarCanvas').getContext('2d');
+    const labels = WHEEL_AREAS.map(a => a.label);
+    const data = WHEEL_AREAS.map(a => wheelValues[a.id]);
 
-    ctx.clearRect(0, 0, W, H);
-
-    // Draw concentric rings
-    for (let ring = 2; ring <= 10; ring += 2) {
-      ctx.beginPath();
-      for (let i = 0; i <= n; i++) {
-        const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-        const r = (ring / 10) * maxR;
-        const x = cx + r * Math.cos(angle);
-        const y = cy + r * Math.sin(angle);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = gray200;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // ring label
-      ctx.fillStyle = '#aaa';
-      ctx.font = '9px DM Sans, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(ring, cx + 3, cy - (ring / 10) * maxR + 4);
+    if (radarChart) {
+      radarChart.data.datasets[0].data = data;
+      radarChart.update();
+      return;
     }
 
-    // Draw axis lines
-    for (let i = 0; i < n; i++) {
-      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + maxR * Math.cos(angle), cy + maxR * Math.sin(angle));
-      ctx.strokeStyle = gray200;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // Draw filled data polygon
-    ctx.beginPath();
-    WHEEL_AREAS.forEach((area, i) => {
-      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const r = (wheelValues[area.id] / 10) * maxR;
-      const x = cx + r * Math.cos(angle);
-      const y = cy + r * Math.sin(angle);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(10,10,10,0.10)';
-    ctx.fill();
-    ctx.strokeStyle = black;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Draw data points
-    WHEEL_AREAS.forEach((area, i) => {
-      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const r = (wheelValues[area.id] / 10) * maxR;
-      const x = cx + r * Math.cos(angle);
-      const y = cy + r * Math.sin(angle);
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = black;
-      ctx.fill();
-    });
-
-    // Draw axis labels
-    ctx.fillStyle = black;
-    WHEEL_AREAS.forEach((area, i) => {
-      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const labelR = maxR + 16;
-      const x = cx + labelR * Math.cos(angle);
-      const y = cy + labelR * Math.sin(angle);
-
-      ctx.font = '600 10px DM Sans, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Offset label away from center
-      const offsetX = Math.cos(angle) * 2;
-      const offsetY = Math.sin(angle) * 2;
-
-      // Wrap long labels
-      const words = area.label.split(' & ');
-      if (words.length > 1) {
-        ctx.fillText(words[0], x + offsetX, y + offsetY - 7);
-        ctx.fillText('& ' + words[1], x + offsetX, y + offsetY + 6);
-      } else {
-        ctx.fillText(area.label, x + offsetX, y + offsetY);
+    radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Satisfaction',
+          data,
+          fill: true,
+          backgroundColor: 'rgba(10,10,10,0.10)',
+          borderColor: '#0a0a0a',
+          borderWidth: 2,
+          pointBackgroundColor: '#0a0a0a',
+          pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: false,
+        animation: { duration: 400 },
+        scales: {
+          r: {
+            min: 0,
+            max: 10,
+            ticks: { stepSize: 2, backdropColor: 'transparent', color: '#aaaaaa', font: { size: 9 } },
+            grid: { color: '#e5e5e5' },
+            angleLines: { color: '#e5e5e5' },
+            pointLabels: { font: { size: 10, weight: '600', family: 'DM Sans, sans-serif' }, color: '#0a0a0a' }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: true }
+        }
       }
     });
   }

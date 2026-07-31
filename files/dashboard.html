@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Compass - Progress Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -20,25 +21,7 @@
             <!-- Progress Gauge Will Appear Cyclic Hopefully. Works well on desktop, yet to test on mobile devices -->
              <!-- Improved mobile phone compatibility on css a little-->
             <div class="circular-progress">
-                <svg class="progress-ring" width="200" height="200">
-                    <circle
-                        stroke="#e0e0e0"
-                        stroke-width="20"
-                        fill="transparent"
-                        r="80"
-                        cx="100"
-                        cy="100"
-                    />
-                    <circle
-                        class="progress-ring-circle"
-                        stroke-width="20"
-                        fill="transparent"
-                        r="80"
-                        cx="100"
-                        cy="100"
-                        id="progressCircle"
-                    />
-                </svg>
+                <canvas id="progressChart" width="200" height="200"></canvas>
                 <div class="progress-text" id="progressPercentage">0%</div>
                 <div class="progress-label">Complete</div>
             </div>
@@ -72,8 +55,7 @@
 
         <div class="comparison-chart">
             <h2>Goals Distribution</h2>
-            <div class="bar-chart" id="barChart">
-            </div>
+            <canvas id="distributionChart" height="220"></canvas>
         </div>
 
         <div class="recent-activity">
@@ -95,6 +77,8 @@
         };
 
         let goals = [];
+        let progressChart = null;
+        let distributionChart = null;
 
         // FUNCTION 1: Load data and initialize dashboard
         function loadData() {
@@ -118,7 +102,7 @@
         }
 
     
-        // FUNCTION 2: Update circular progress gauge
+        // FUNCTION 2: Update circular progress gauge (Chart.js doughnut)
         
         function updateOverallProgress() {
             const total = goals.length;
@@ -134,18 +118,34 @@
             document.getElementById('inProgressStat').textContent = total - completed;
             document.getElementById('completionRate').textContent = percentage + '%';
 
-            const circle = document.getElementById('progressCircle');
-            const radius = circle.r.baseVal.value;
-            const circumference = radius * 2 * Math.PI;
+            const ctx = document.getElementById('progressChart').getContext('2d');
 
-            circle.style.strokeDasharray = `${circumference} ${circumference}`;
-            circle.style.strokeDashoffset = circumference;
+            if (progressChart) {
+                progressChart.data.datasets[0].data = [percentage, 100 - percentage];
+                progressChart.update();
+                return;
+            }
 
-            // Trigger animation
-            setTimeout(() => {
-                const offset = circumference - (percentage / 100) * circumference;
-                circle.style.strokeDashoffset = offset;
-            }, 100);
+            progressChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Complete', 'Remaining'],
+                    datasets: [{
+                        data: [percentage, 100 - percentage],
+                        backgroundColor: ['#0a0a0a', '#e5e5e5'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '80%',
+                    responsive: false,
+                    animation: { animateRotate: true, duration: 700 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
         }
 
         
@@ -182,32 +182,46 @@
         }
 
         
-        // FUNCTION 4: Update comparison bar chart
+        // FUNCTION 4: Update comparison bar chart (Chart.js stacked bar)
         
         function updateComparisonChart() {
-            const container = document.getElementById('barChart');
-            container.innerHTML = '';
+            const labels = Object.keys(CATEGORIES).map(key => CATEGORIES[key].name.split('/')[0]);
+            const completedData = Object.keys(CATEGORIES).map(key =>
+                goals.filter(g => g.category === key && g.completed).length
+            );
+            const remainingData = Object.keys(CATEGORIES).map(key =>
+                goals.filter(g => g.category === key && !g.completed).length
+            );
 
-            // Find max goals for scaling
-            const maxGoals = Math.max(...Object.keys(CATEGORIES).map(key => 
-                goals.filter(g => g.category === key).length
-            ), 1);
+            const ctx = document.getElementById('distributionChart').getContext('2d');
 
-            Object.keys(CATEGORIES).forEach(categoryKey => {
-                const category = CATEGORIES[categoryKey];
-                const count = goals.filter(g => g.category === categoryKey).length;
-                const heightPercentage = (count / maxGoals) * 100;
+            if (distributionChart) {
+                distributionChart.data.datasets[0].data = completedData;
+                distributionChart.data.datasets[1].data = remainingData;
+                distributionChart.update();
+                return;
+            }
 
-                const column = document.createElement('div');
-                column.className = 'bar-column';
-                column.innerHTML = `
-                    <div class="bar" style="height: ${heightPercentage}%">
-                        <div class="bar-value">${count}</div>
-                    </div>
-	                    <div class="bar-label">${category.name.split('/')[0]}</div>
-                `;
-
-                container.appendChild(column);
+            distributionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Completed', data: completedData, backgroundColor: '#0a0a0a', stack: 'goals' },
+                        { label: 'Remaining', data: remainingData, backgroundColor: '#d0d0d0', stack: 'goals' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
             });
         }
         

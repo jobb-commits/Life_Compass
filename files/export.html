@@ -8,11 +8,19 @@
     <!-- Links to html to pdf libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
     
     
 </head>
 <body>
     <div class="container">
+        <!-- Offscreen canvases used to render chart images for the PDF export.
+             Positioned off-screen rather than display:none so Chart.js can
+             still measure/render them correctly. -->
+        <div style="position:absolute; left:-9999px; top:0;">
+            <canvas id="exportOverallChart" width="260" height="260"></canvas>
+            <canvas id="exportCategoryChart" width="500" height="280"></canvas>
+        </div>
         <div class="header">
             <h1>Export</h1>
             <p class="user-greeting" id="userGreeting">Download a comprehensive report</p>
@@ -162,6 +170,75 @@
         }
 
         // EXPORT PDF (NOW OPTIMIZED FOR SMALLER FILE SIZE)
+        // Renders the overall-completion doughnut and category-breakdown
+        // bar chart into the offscreen canvases, and returns them as
+        // base64 PNGs ready for pdf.addImage(). Animation is disabled so
+        // the canvas is fully painted synchronously before we read it.
+        function renderExportCharts() {
+            const totalGoals = goals.length;
+            const completedGoals = goals.filter(g => g.completed).length;
+            const percentage = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+
+            const overallCtx = document.getElementById('exportOverallChart').getContext('2d');
+            const overallChart = new Chart(overallCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Complete', 'Remaining'],
+                    datasets: [{
+                        data: [percentage, 100 - percentage],
+                        backgroundColor: ['#0a0a0a', '#e5e5e5'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '72%',
+                    responsive: false,
+                    animation: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+
+            const catCompleted = Object.keys(CATEGORIES).map(key =>
+                goals.filter(g => g.category === key && g.completed).length
+            );
+            const catRemaining = Object.keys(CATEGORIES).map(key =>
+                goals.filter(g => g.category === key && !g.completed).length
+            );
+
+            const catCtx = document.getElementById('exportCategoryChart').getContext('2d');
+            const categoryChart = new Chart(catCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(CATEGORIES).map(k => CATEGORIES[k].name.split('/')[0]),
+                    datasets: [
+                        { label: 'Completed', data: catCompleted, backgroundColor: '#0a0a0a', stack: 'goals' },
+                        { label: 'Remaining', data: catRemaining, backgroundColor: '#d0d0d0', stack: 'goals' }
+                    ]
+                },
+                options: {
+                    responsive: false,
+                    animation: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            const images = {
+                overall: overallChart.toBase64Image('image/png', 1),
+                category: categoryChart.toBase64Image('image/png', 1)
+            };
+
+            // Charts only needed for this snapshot — destroy so a repeat
+            // export doesn't stack a second Chart instance on the canvas.
+            overallChart.destroy();
+            categoryChart.destroy();
+
+            return images;
+        }
+
         async function exportPDF() {
             if (!checkHasData()) return;
 
@@ -172,6 +249,11 @@
             await new Promise(resolve => setTimeout(resolve, 500));
 
             try {
+                // Render real chart images (overall completion + category
+                // breakdown) so the PDF contains an actual visualization
+                // instead of hand-drawn rectangles.
+                const chartImages = renderExportCharts();
+
                 // Use jsPDF directly to create a more optimized PDF without relying on html2canvas, which can create large images and increase file size significantly. This approach focuses on text and simple graphics, resulting in a much smaller file size while still providing a professional report.
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
@@ -252,15 +334,33 @@
 
                     pdf.setTextColor(51, 51, 51);
                     pdf.text(`${CATEGORY_LABELS[categoryKey]} ${category.name}: ${completed}/${total} (${percentage}%)`, 20, yPos);
-                    
-                    // Draw progress bar
-                    pdf.setFillColor(224, 224, 224);
-                    pdf.rect(20, yPos + 2, 100, 4, 'F');
-                    pdf.setFillColor(10, 10, 10);
-                    pdf.rect(20, yPos + 2, Math.min(percentage, 100), 4, 'F');
-                    
-                    yPos += 12;
+                    yPos += 8;
                 });
+
+                // PROGRESS CHARTS PAGE
+                // Real chart images (rendered via Chart.js above) rather
+                // than hand-drawn rectangles.
+                pdf.addPage();
+                pdf.setFontSize(24);
+                pdf.setTextColor(51, 51, 51);
+                pdf.text('Progress Charts', 20, 20);
+
+                pdf.setDrawColor(10, 10, 10);
+                pdf.setLineWidth(1);
+                pdf.line(20, 25, 190, 25);
+
+                pdf.setFontSize(14);
+                pdf.setTextColor(10, 10, 10);
+                pdf.text('Overall Completion', 20, 40);
+                pdf.addImage(chartImages.overall, 'PNG', 65, 45, 80, 80);
+                pdf.setFontSize(20);
+                pdf.setTextColor(10, 10, 10);
+                pdf.text(`${completionRate}%`, 105, 90, { align: 'center' });
+
+                pdf.setFontSize(14);
+                pdf.setTextColor(10, 10, 10);
+                pdf.text('Goals by Category', 20, 145);
+                pdf.addImage(chartImages.category, 'PNG', 20, 150, 170, 95);
 
                 // GOALS PAGES
                 Object.keys(CATEGORIES).forEach(categoryKey => {

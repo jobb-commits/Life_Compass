@@ -140,6 +140,20 @@
             const hasDeepProfile = Object.keys(deepContext).length > 0;
             const location = profile.location || 'Kenya';
 
+            // RAG step: pull real, vetted candidate resources from our
+            // knowledge base, ranked against this user's goals/profile,
+            // so Gemini personalizes real resources instead of inventing
+            // titles and links from scratch.
+            let candidateResources = {};
+            try {
+                candidateResources = await retrieveCandidates({
+                    profile, goals, deepContext, categoriesToCover, topN: 2
+                });
+            } catch (kbError) {
+                console.error('Knowledge base retrieval failed, falling back to open generation:', kbError);
+            }
+            const hasCandidates = Object.values(candidateResources).some(list => list && list.length > 0);
+
             // Build life-wheel priority note if scores are available
             let wheelNote = '';
             if (deepContext.lifeWheelScores) {
@@ -214,10 +228,15 @@ ${deepContext.biggestBarrier ? `8. BIGGEST BARRIER: Their main obstacle is "${de
 ${deepContext.existingTools ? `9. EXISTING TOOLS: They already use ${deepContext.existingTools}. Do NOT recommend these again. Build on them or recommend complementary tools.` : ''}
 ${deepContext.additionalContext ? `10. EXTRA CONTEXT: ${deepContext.additionalContext}` : ''}
 
+${hasCandidates ? `CANDIDATE RESOURCES (from our vetted knowledge base, ranked for this person)
+${JSON.stringify(candidateResources)}` : ''}
+
 OUTPUT RULES 
 - Generate exactly 3 sharp, specific insights. Each under 30 words. Reference their actual situation, not generic advice.
 - Generate resources ONLY for these categories (the ones they have goals in): ${categoriesToCover.join(', ')}
 - For each category, provide 1-2 highly relevant resources. Quality over quantity.
+${hasCandidates ? `- PRIORITIZE the CANDIDATE RESOURCES above: reuse their type/title/author/link/tags exactly as given, and only rewrite the "description" field to be specific to this person. Do not alter the link.
+- Only invent a resource beyond the candidates if none of them fit a category at all, and only if it is a real, verifiable resource (no placeholder links).` : ''}
 - Each resource description must be specific to this person, not generic copy.
 - Keep each description under 35 words.
 
@@ -580,5 +599,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
         });
     </script>
       <script src="nav.js"></script>
+      <script src="knowledge/retrieval.js"></script>
 </body>
 </html>
