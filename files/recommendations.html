@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Compass - Recommendations</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .meta-icon { width: 14px; height: 14px; vertical-align: middle; display: inline-block; }
+        .category-icon i, .category-icon svg { width: 24px; height: 24px; }
+        .insight-icon i, .insight-icon svg,
+        .empty-icon i, .empty-icon svg { width: 28px; height: 28px; }
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Personalized Recommendations</h1>
+            <p class="user-greeting" id="userGreeting">Resources tailored to your goals</p>
+        </div>
+
+        <div class="insights-section">
+            <h2>AI-Powered Insights</h2>
+            <div class="insight-cards" id="insightsCards">
+                </div>
+        </div>
+
+        <div class="category-section" id="favoritesSection" style="display: none;">
+            <div class="category-header">
+                <div class="category-icon"><i data-lucide="star"></i></div>
+                <div class="category-info">
+                    <h2>My Saved Resources</h2>
+                    <div class="category-subtitle">Resources you've bookmarked for later</div>
+                </div>
+            </div>
+            <div class="resources-grid" id="favoritesGrid">
+                </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Filter by Category</h3>
+            <div class="filter-buttons" id="filterButtons">
+                <button class="filter-btn active" data-category="all">All Categories</button>
+                <button class="filter-btn" data-category="career">Career</button>
+                <button class="filter-btn" data-category="health">Health</button>
+                <button class="filter-btn" data-category="finance">Finance</button>
+                <button class="filter-btn" data-category="relationships">Relationships</button>
+                <button class="filter-btn" data-category="hobbies">Hobbies</button>
+            </div>
+        </div>
+
+        <div id="resourcesContainer">
+            </div>
+    </div>
+
+    <script>
+        
+        // Simple fallback dataset in case the AI fails to load
+        let RESOURCES = {
+            career: [
+                {
+                    type: 'book',
+                    title: 'Atomic Habits',
+                    author: 'James Clear',
+                    description: 'Tiny changes, remarkable results. Learn how to build good habits and break bad ones.',
+                    rating: 4.8,
+                    difficulty: 'Beginner',
+                    timeRequired: '4-6 hours',
+                    tags: ['productivity', 'self-improvement', 'habits'],
+                    link: 'https://jamesclear.com/atomic-habits'
+                }
+            ],
+            health: [],
+            finance: [],
+            relationships: [],
+            hobbies: []
+        };
+
+        // Core App Variables
+        let goals = [];
+        let currentFilter = 'all';
+        let userAge = 0;
+        let profile = {};
+        let deepProfile = {};
+
+        
+        //AI INTEGRATION (Used Vercel Backend)
+        async function fetchAIRecommendations() {
+            // Show loading UI
+            document.getElementById('insightsCards').innerHTML = "<div class='insight-card'><div class='insight-icon'><i data-lucide='loader-circle' class='loader-spin'></i></div><div class='insight-text'>Analyzing your profile...</div></div>";
+            document.getElementById('resourcesContainer').innerHTML = "<div class='empty-state'><div class='empty-icon'><i data-lucide='brain'></i></div><div>Generating personalized resources...</div></div>";
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            // Trim goals to only the fields Gemini needs
+            const trimmedGoals = goals.map(g => ({
+                title: g.title,
+                category: g.category,
+                completed: g.completed
+            }));
+
+            // Work out which categories the user actually has goals in,
+            // so we can ask Gemini to focus resources there
+            const activeCategories = [...new Set(goals.map(g => g.category))];
+            const categoriesToCover = activeCategories.length > 0
+                ? activeCategories
+                : ['career', 'health', 'finance', 'relationships', 'hobbies'];
+
+            // Pull the most useful deep profile fields for Gemini,
+            // skipping internal/technical ones (savedAt, goalWhys)
+            const deepContext = deepProfile ? {
+                lifeWheelScores:     deepProfile.wheelValues,      // satisfaction 1-10 per area
+                focusHoursPerDay:    deepProfile.focusHours,
+                sleepHoursPerNight:  deepProfile.sleepHours,
+                peakProductivityTime:deepProfile.peakTime,
+                freeTimeHoursPerWeek:deepProfile.freeTimeHours,
+                freeTimeWhen:        deepProfile.freeTimeWhen,
+                financialRunway:     deepProfile.financialRunway,  // how many months of savings
+                obligations:         deepProfile.obligations,      // fixed life constraints
+                biggestBarrier:      deepProfile.barrierValue,
+                decisionStyle:       deepProfile.decisionStyle,
+                accountabilityStyle: deepProfile.accountabilityStyle,
+                learningStyle:       deepProfile.learningStyle,    // video / reading / hands-on etc.
+                riskTolerance:       deepProfile.riskTolerance,
+                goalMotivation:      deepProfile.goalMotivation,
+                topSkills:           deepProfile.topSkills,
+                existingTools:       deepProfile.existingTools,    // tools they already use
+                networkSupport:      deepProfile.networkSupport,
+                additionalContext:   deepProfile.additionalContext
+            } : {};
+
+            Object.keys(deepContext).forEach(k => {
+                if (!deepContext[k] || deepContext[k] === '' ||
+                    (typeof deepContext[k] === 'object' && Object.keys(deepContext[k]).length === 0)) {
+                    delete deepContext[k];
+                }
+            });
+
+            const hasDeepProfile = Object.keys(deepContext).length > 0;
+            const location = profile.location || 'Kenya';
+
+            // Build life-wheel priority note if scores are available
+            let wheelNote = '';
+            if (deepContext.lifeWheelScores) {
+                const scores = deepContext.lifeWheelScores;
+                const sorted = Object.entries(scores).sort((a, b) => a[1] - b[1]);
+                const lowest = sorted.slice(0, 2).map(([area, score]) => `${area} (${score}/10)`);
+                wheelNote = `Their lowest life satisfaction scores are: ${lowest.join(', ')}. Prioritise resources that address these areas.`;
+            }
+
+            // Build a learning-style note to bias resource types
+            let resourceBias = '';
+            if (deepContext.learningStyle) {
+                const style = deepContext.learningStyle.toLowerCase();
+                if (style.includes('video') || style.includes('watch')) {
+                    resourceBias = 'This person learns best from video — favour courses and YouTube channels over books where possible.';
+                } else if (style.includes('read') || style.includes('book')) {
+                    resourceBias = 'This person is a reader — favour books and written guides over video courses.';
+                } else if (style.includes('hands') || style.includes('doing') || style.includes('practice')) {
+                    resourceBias = 'This person learns by doing — favour interactive tools, apps, and project-based courses.';
+                }
+            }
+
+            // Build a budget note from financial runway
+            let budgetNote = '';
+            if (deepContext.financialRunway) {
+                const runway = deepContext.financialRunway.toLowerCase();
+                if (runway.includes('1') || runway.includes('2') || runway.includes('tight') || runway.includes('none')) {
+                    budgetNote = 'Budget is tight — strongly prefer free or low-cost resources (free tiers, open-source, YouTube, public libraries).';
+                } else if (runway.includes('12') || runway.includes('abundant') || runway.includes('comfortable')) {
+                    budgetNote = 'Budget is comfortable — paid tools and premium courses are appropriate recommendations.';
+                }
+            }
+
+            // Build time availability note
+            let timeNote = '';
+            if (deepContext.freeTimeHoursPerWeek) {
+                const hrs = parseInt(deepContext.freeTimeHoursPerWeek);
+                if (hrs <= 5) {
+                    timeNote = `Very limited free time (${hrs}h/week) — only recommend resources that can be consumed in short sessions (under 30 minutes each).`;
+                } else if (hrs >= 20) {
+                    timeNote = `Plenty of free time (${hrs}h/week) — longer courses and deeper reading are appropriate.`;
+                }
+            }
+
+            const prompt = `
+You are an expert life coach. Analyze this person's complete profile and generate highly personalized recommendations.
+
+BASIC PROFILE 
+Name: ${profile.name || 'User'}
+Age: ${profile.age || 'Unknown'}
+Occupation: ${profile.occupation || 'Unknown'}
+Education: ${profile.education || 'Unknown'}
+Location: ${location}
+Short-term goals: ${profile.shortTermGoals || 'Not specified'}
+Long-term goals: ${profile.longTermGoals || 'Not specified'}
+
+GOALS (structured) 
+${JSON.stringify(trimmedGoals)}
+
+${hasDeepProfile ? `=== DEEP PROFILE ===
+${JSON.stringify(deepContext, null, 0)}` : ''}
+
+PERSONALIZATION RULES 
+1. LOCATION: All recommendations must be accessible in ${location}. For apps and tools, confirm they work there. For finance, prioritise M-Pesa-compatible tools and local banks if in Kenya. For career, mention local tech hubs, communities, or events if relevant.
+2. OCCUPATION & EDUCATION: Tailor the level and type of resources to their actual background. A student needs different resources than a working professional.
+3. AGE & LIFE STAGE: A ${profile.age || 'young'}-year-old has different priorities and energy than someone older. Reflect this.
+${wheelNote ? `4. LIFE WHEEL: ${wheelNote}` : ''}
+${resourceBias ? `5. LEARNING STYLE: ${resourceBias}` : ''}
+${budgetNote ? `6. BUDGET: ${budgetNote}` : ''}
+${timeNote ? `7. TIME: ${timeNote}` : ''}
+${deepContext.biggestBarrier ? `8. BIGGEST BARRIER: Their main obstacle is "${deepContext.biggestBarrier}". At least one insight should directly address this.` : ''}
+${deepContext.existingTools ? `9. EXISTING TOOLS: They already use ${deepContext.existingTools}. Do NOT recommend these again. Build on them or recommend complementary tools.` : ''}
+${deepContext.additionalContext ? `10. EXTRA CONTEXT: ${deepContext.additionalContext}` : ''}
+
+OUTPUT RULES 
+- Generate exactly 3 sharp, specific insights. Each under 30 words. Reference their actual situation, not generic advice.
+- Generate resources ONLY for these categories (the ones they have goals in): ${categoriesToCover.join(', ')}
+- For each category, provide 1-2 highly relevant resources. Quality over quantity.
+- Each resource description must be specific to this person, not generic copy.
+- Keep each description under 35 words.
+
+You MUST return ONLY valid JSON in this exact structure, no other text:
+{
+    "insights": [
+        {"text": "Insight text here"}
+    ],
+    "resources": {
+        "career": [],
+        "health": [],
+        "finance": [],
+        "relationships": [],
+        "hobbies": []
+    }
+}
+Each resource object must have exactly these keys: type, title, author, description, rating, difficulty, timeRequired, tags (array of strings), link.
+Only populate the categories listed above. Leave others as empty arrays [].
+            `.trim();
+
+            try {
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                if (!response.ok) throw new Error('Backend response not OK');
+
+                const data = await response.json();
+
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!rawText) throw new Error('No content returned from Gemini');
+
+                let aiResult;
+                try {
+                    aiResult = JSON.parse(rawText);
+                } catch (parseError) {
+                    if (data.truncated) {
+                        throw new Error('Response was truncated before it finished generating.');
+                    }
+                    throw parseError;
+                }
+
+                // Overwrite fallback data with AI data
+                RESOURCES = aiResult.resources;
+
+                // Render UI
+                renderAIInsights(aiResult.insights);
+                displayResources();
+                displayFavorites();
+
+            } catch (error) {
+                console.error("AI Integration Error:", error);
+                const message = error.message.includes('truncated')
+                    ? "The AI response was too long and got cut off. Showing fallback resources instead — try refreshing."
+                    : "Failed to load AI insights. Make sure your Vercel backend is running and reachable.";
+                document.getElementById('insightsCards').innerHTML = `<div class='insight-card'>${message}</div>`;
+                displayResources();
+                displayFavorites();
+            }
+        }
+
+        // Helper to inject the new AI insight cards into the DOM
+        function renderAIInsights(insights) {
+            const container = document.getElementById('insightsCards');
+            container.innerHTML = '';
+            insights.forEach(insight => {
+                const card = document.createElement('div');
+                card.className = 'insight-card';
+                card.innerHTML = `
+                    <div class="insight-icon"><i data-lucide="lightbulb"></i></div>
+                    <div class="insight-text">${insight.text}</div>
+                `;
+                container.appendChild(card);
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // FUNCTION 1: Load data
+        async function loadData() {
+            // Load profile
+            const savedProfile = localStorage.getItem('lifeAuditProfile');
+            if (savedProfile) {
+                profile = JSON.parse(savedProfile);
+                userAge = parseInt(profile.age);
+                document.getElementById('userGreeting').textContent = 
+                    `${profile.name}, here are resources matched to your goals`;
+            }
+
+            // Load goals
+            const savedGoals = localStorage.getItem('lifeAuditGoals');
+            goals = savedGoals ? JSON.parse(savedGoals) : [];
+
+            // Load deep profile
+            const savedDeep = localStorage.getItem('lifeAuditDeepProfile');
+            deepProfile = savedDeep ? JSON.parse(savedDeep) : {};
+
+            // Trigger the AI fetch 
+            await fetchAIRecommendations();
+
+            // Setup filter buttons
+            setupFilters();
+        }
+
+        // FUNCTION 2: Display saved favorites
+        function displayFavorites() {
+            const savedArray = getSavedResources();
+
+            const favoritesSection = document.getElementById('favoritesSection');
+            const favoritesGrid = document.getElementById('favoritesGrid');
+
+            if (savedArray.length === 0) {
+                favoritesSection.style.display = 'none';
+                return;
+            }
+
+            // Show favorites section
+            favoritesSection.style.display = 'block';
+            favoritesGrid.innerHTML = '';
+
+            // Render directly from the saved resource objects 
+            // Persist across refreshes and AI re-fetches, independent of what's currently in RESOURCES
+            savedArray.forEach(resource => {
+                const card = createFavoriteCard(resource);
+                favoritesGrid.appendChild(card);
+            });
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Helper: read savedResources from localStorage, migrating the old
+        // "array of title strings" format to "array of full resource objects"
+        // if needed, so favorites saved before this fix aren't lost
+        function getSavedResources() {
+            const saved = localStorage.getItem('savedResources');
+            let savedArray = saved ? JSON.parse(saved) : [];
+
+            const isOldFormat = savedArray.length > 0 && typeof savedArray[0] === 'string';
+            if (isOldFormat) {
+                const migrated = savedArray
+                    .map(title => findResourceByTitle(title))
+                    .filter(Boolean); // drop titles that no longer match anything
+                localStorage.setItem('savedResources', JSON.stringify(migrated));
+                return migrated;
+            }
+
+            return savedArray;
+        }
+
+        // FUNCTION 3: Create favorite resource card
+        function createFavoriteCard(resource) {
+            const card = document.createElement('div');
+            card.className = 'resource-card';
+
+            const tagsHTML = resource.tags.map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="resource-type ${resource.type}">${resource.type}</div>
+                <div class="resource-title">${resource.title}</div>
+                <div class="resource-author">by ${resource.author}</div>
+                <div class="resource-description">${resource.description}</div>
+                <div class="resource-meta">
+                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${resource.rating}/5</div>
+                    <div class="meta-item">${resource.difficulty}</div>
+                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${resource.timeRequired}</div>
+                </div>
+                <div class="resource-tags">${tagsHTML}</div>
+                <div class="resource-actions">
+                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? 'Learn More' : 
+ resource.type === 'course' ? 'Enroll' :
+ resource.type === 'app' ? 'Download' :
+ resource.type === 'tool' ? 'Try It' :
+ 'Visit'}</button>
+                    <button class="action-btn btn-secondary-action" onclick="removeFavorite('${resource.title}')">Remove</button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // FUNCTION 4: Remove from favorites
+        function removeFavorite(title) {
+            let savedArray = getSavedResources();
+            
+            savedArray = savedArray.filter(item => item.title !== title);
+            localStorage.setItem('savedResources', JSON.stringify(savedArray));
+            
+            // Refresh display
+            displayFavorites();
+            
+            alert(`"${title}" removed from favorites!`);
+        }
+
+        // FUNCTION 5: Setup filter buttons
+        function setupFilters() {
+            const buttons = document.querySelectorAll('.filter-btn');
+            
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active from all
+                    buttons.forEach(b => b.classList.remove('active'));
+                    
+                    // Add active to clicked
+                    this.classList.add('active');
+                    
+                    // Update filter
+                    currentFilter = this.dataset.category;
+                    
+                    // Refresh display
+                    displayResources();
+                });
+            });
+        }
+
+        // FUNCTION 6: Display resources
+        function displayResources() {
+            const container = document.getElementById('resourcesContainer');
+            container.innerHTML = '';
+
+            // Determine which categories to show
+            let categoriesToShow = [];
+            if (currentFilter === 'all') {
+                // Prioritize categories with goals
+                const goalCategories = [...new Set(goals.map(g => g.category))];
+                categoriesToShow = goalCategories.length > 0 
+                    ? goalCategories 
+                    : Object.keys(RESOURCES);
+            } else {
+                categoriesToShow = [currentFilter];
+            }
+
+            // Display each category
+            categoriesToShow.forEach(category => {
+                // Only create the section if there are actually resources for it
+                if (RESOURCES[category] && RESOURCES[category].length > 0) {
+                    const section = createCategorySection(category);
+                    container.appendChild(section);
+                }
+            });
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // FUNCTION 7: Create category section
+        function createCategorySection(category) {
+            const categoryInfo = {
+                career: { icon: 'briefcase', name: 'Career & Education', subtitle: 'Advance your professional journey' },
+                health: { icon: 'dumbbell', name: 'Health & Fitness', subtitle: 'Optimize your physical & mental well-being' },
+                finance: { icon: 'banknote', name: 'Finance', subtitle: 'Build wealth and financial security' },
+                relationships: { icon: 'heart', name: 'Relationships & Social', subtitle: 'Strengthen connections and communication' },
+                hobbies: { icon: 'palette', name: 'Skills & Hobbies', subtitle: 'Explore creativity and personal interests' }
+            };
+
+            const info = categoryInfo[category];
+            const resources = RESOURCES[category];
+
+            const section = document.createElement('div');
+            section.className = 'category-section';
+            section.innerHTML = `
+                <div class="category-header">
+                    <div class="category-icon"><i data-lucide="${info.icon}"></i></div>
+                    <div class="category-info">
+                        <h2>${info.name}</h2>
+                        <div class="category-subtitle">${info.subtitle}</div>
+                    </div>
+                </div>
+                <div class="resources-grid" id="${category}-grid"></div>
+            `;
+
+            // Add resources
+            const grid = section.querySelector(`#${category}-grid`);
+            resources.forEach(resource => {
+                grid.appendChild(createResourceCard(resource));
+            });
+
+            return section;
+        }
+
+        // FUNCTION 8: Create resource card
+        function createResourceCard(resource) {
+            const card = document.createElement('div');
+            card.className = 'resource-card';
+
+            const tagsHTML = resource.tags.map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="resource-type ${resource.type}">${resource.type}</div>
+                <div class="resource-title">${resource.title}</div>
+                <div class="resource-author">by ${resource.author}</div>
+                <div class="resource-description">${resource.description}</div>
+                <div class="resource-meta">
+                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${resource.rating}/5</div>
+                    <div class="meta-item">${resource.difficulty}</div>
+                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${resource.timeRequired}</div>
+                </div>
+                <div class="resource-tags">${tagsHTML}</div>
+                <div class="resource-actions">
+                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? 'Learn More' : 
+ resource.type === 'course' ? 'Enroll' :
+ resource.type === 'app' ? 'Download' :
+ resource.type === 'tool' ? 'Try It' :
+ 'Visit'}</button>
+                    <button class="action-btn btn-secondary-action" onclick="saveResource('${resource.title}')">Save</button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // FUNCTION 9: Open resource link
+        function openResource(link, title) {
+            if (link === '#' || !link) {
+                alert(`"${title}" - Visit your local bookstore or search online to find this resource!`);
+            } else {
+                window.open(link, '_blank');
+            }
+        }
+
+        // FUNCTION 10: Save resource to favorites
+        function saveResource(title) {
+            // Find the full resource object so it survives a refresh
+            // even if the AI returns a different RESOURCES set next time
+            const resource = findResourceByTitle(title);
+            if (!resource) return;
+
+            let savedArray = getSavedResources();
+
+            const alreadySaved = savedArray.some(item => item.title === title);
+
+            if (!alreadySaved) {
+                savedArray.push(resource);
+                localStorage.setItem('savedResources', JSON.stringify(savedArray));
+
+                // Refresh favorites display
+                displayFavorites();
+
+                alert(`"${title}" saved to your favorites!`);
+            } else {
+                alert(`"${title}" is already in your favorites!`);
+            }
+        }
+
+        // Helper: find a resource object by title across all current categories
+        function findResourceByTitle(title) {
+            for (const category of Object.keys(RESOURCES)) {
+                const match = RESOURCES[category].find(r => r.title === title);
+                if (match) return match;
+            }
+            return null;
+        }
+
+        // INITIALIZE
+        window.addEventListener('load', function() {
+            loadData();
+        });
+    </script>
+      <script src="nav.js"></script>
+</body>
+</html>
