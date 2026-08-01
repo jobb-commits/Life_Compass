@@ -1220,16 +1220,31 @@ textarea {
 
 /* Success / alert messages */
 .success-message {
-  background: var(--black);
-  color: var(--white);
-  padding: 13px 16px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 20px;
   display: none;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  animation: slideDown 0.22s ease;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #000;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 4px;
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+.success-message.show {
+  display: block;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .success-message.show { display: block; }
