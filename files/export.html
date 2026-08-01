@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Compass- Export Report</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Links to html to pdf libraries -->
+    <!-- PDF generation library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     
 </head>
@@ -64,10 +63,9 @@
     </div>
 
     <script>
-        // HELPER: Clean text for PDF (remove emojis and special characters that may not render well in PDF as I ran into issue before)
+        //Ran into errors when special symbols were inserted. Function cleans text a little should user have used emojis or special symbols anywhere
         function cleanTextForPDF(text) {
             if (!text) return '';
-            // Remove emojis and special unicode characters
             return text.replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Emojis
                        .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Misc symbols
                        .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Dingbats
@@ -76,8 +74,7 @@
                        .trim();
         }
 
-        
-        // LOAD DATA
+    
         let profile = {};
         let goals = [];
         let gamificationData = {};
@@ -85,6 +82,7 @@
 
         function loadAllData() {
             // Load profile
+            //Don't touch anything!!
             const savedProfile = localStorage.getItem('lifeAuditProfile');
             if (savedProfile) {
                 profile = JSON.parse(savedProfile);
@@ -106,7 +104,6 @@
         }
 
         
-        // ACHIEVEMENT DEFINITIONS — keep in sync with achievements.html
         const ACHIEVEMENTS = [
             { id: 'first_goal',       name: 'The Beginning',     xp: 100   },
             { id: 'goal_getter',      name: 'Rising Star',       xp: 500   },
@@ -137,7 +134,6 @@
             hobbies: { name: 'Skills/Hobbies'}
         };
 
-        // PDF-friendly category labels (no emojis)
         const CATEGORY_LABELS = {
             career: '[CAREER]',
             health: '[HEALTH]',
@@ -161,18 +157,18 @@
             return true;
         }
 
-        // EXPORT PDF (NOW OPTIMIZED FOR SMALLER FILE SIZE)
+        // EXPORT PDF (NOW OPTIMIZED FOR SMALLER FILE SIZE, i think)
         async function exportPDF() {
             if (!checkHasData()) return;
 
             // Show loading
             document.getElementById('loadingOverlay').classList.add('show');
 
-            // A kasmall delay to show loading
+            // A small delay to show loading overlay
             await new Promise(resolve => setTimeout(resolve, 500));
 
             try {
-                // Use jsPDF directly to create a more optimized PDF without relying on html2canvas, which can create large images and increase file size significantly. This approach focuses on text and simple graphics, resulting in a much smaller file size while still providing a professional report.
+                // Use jsPDF directly to create a more optimized PDF without relying on html2canvas, which can create large images and increase file size significantly. Approach focuses on text and simple graphics, resulting in a much smaller file size while still providing a professional report.
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 
@@ -197,6 +193,43 @@
                 pdf.setFontSize(13);
                 pdf.setTextColor(100, 100, 100);
                 pdf.text(`${completedGoals} of ${totalGoals} goals complete  ·  ${completionRate}% success rate  ·  ${gamificationData.streak || 0}-day streak`, 105, 120, { align: 'center' });
+
+                // TABLE OF CONTENTS PAGE
+                pdf.addPage();
+                pdf.setFontSize(20);
+                pdf.setTextColor(10, 10, 10);
+                pdf.text('Table of Contents', 20, 20);
+                
+                pdf.setDrawColor(10, 10, 10);
+                pdf.setLineWidth(1);
+                pdf.line(20, 25, 190, 25);
+
+                pdf.setFontSize(11);
+                pdf.setTextColor(51, 51, 51);
+                let tocYPos = 35;
+                const tocItems = [
+                    '1. Overview',
+                    '2. Personal Information & Performance Metrics',
+                    '3. Goal Categories'
+                ];
+
+                // Count total category pages
+                let totalCategoryPages = Object.keys(CATEGORIES).reduce((count, key) => {
+                    return count + (goals.filter(g => g.category === key).length > 0 ? 1 : 0);
+                }, 0);
+
+                if (gamificationData.unlockedAchievements.length > 0) {
+                    tocItems.push(`4. Achievements Unlocked (${gamificationData.unlockedAchievements.length} unlocked)`);
+                }
+
+                tocItems.forEach((item, index) => {
+                    pdf.text(item, 30, tocYPos);
+                    tocYPos += 10;
+                });
+
+                pdf.setFontSize(9);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Total Pages: ${totalCategoryPages + 3 + (gamificationData.unlockedAchievements.length > 0 ? 1 : 0)}`, 30, tocYPos + 10);
 
                 // OVERVIEW PAGE
                 pdf.addPage();
@@ -288,7 +321,7 @@
                                 yPos = 20;
                             }
 
-                            // Goal title — split long titles so they don't run off the page
+                            // Should split long titles so they don't run off the page
                             pdf.setFontSize(12);
                             pdf.setTextColor(51, 51, 51);
                             const status = goal.completed ? '[X]' : '[ ]';
@@ -296,6 +329,19 @@
                             pdf.text(titleLines, 20, yPos);
 
                             yPos += titleLines.length * 6;
+
+                            // Goal progress bar (if progress field exists)
+                            if (goal.progress !== undefined && goal.progress !== null) {
+                                const progressPercent = Math.min(Math.max(goal.progress, 0), 100);
+                                pdf.setFillColor(230, 230, 230);
+                                pdf.rect(25, yPos + 1, 80, 3, 'F');
+                                pdf.setFillColor(10, 10, 10);
+                                pdf.rect(25, yPos + 1, (progressPercent / 100) * 80, 3, 'F');
+                                pdf.setFontSize(9);
+                                pdf.setTextColor(153, 153, 153);
+                                pdf.text(`Progress: ${progressPercent}%`, 110, yPos + 3);
+                                yPos += 8;
+                            }
 
                             // Goal description
                             if (goal.description) {
@@ -307,16 +353,36 @@
                                 yPos += descLines.length * 5 + 3;
                             }
 
-                            // Dates
+                            // Dates with priority indicators
                             pdf.setFontSize(9);
                             pdf.setTextColor(153, 153, 153);
-                            let dateLine = 'Created: ' + new Date(goal.createdAt).toLocaleDateString();
+                            const createdDate = new Date(goal.createdAt).toISOString().split('T')[0];
+                            let dateLine = 'Created: ' + createdDate;
+                            
                             if (goal.deadline) {
                                 const deadlineDate = new Date(goal.deadline);
-                                const isOverdue = !goal.completed && deadlineDate < new Date();
-                                dateLine += '   |   Due: ' + deadlineDate.toLocaleDateString() + (isOverdue ? ' (OVERDUE)' : '');
+                                const deadlineDateStr = deadlineDate.toISOString().split('T')[0];
+                                const now = new Date();
+                                let priority = '';
+                                
+                                if (goal.completed) {
+                                    priority = ' [COMPLETE]';
+                                    pdf.setTextColor(80, 140, 80); // Green for completed
+                                } else if (deadlineDate < now) {
+                                    priority = ' [OVERDUE]';
+                                    pdf.setTextColor(180, 80, 80); // Red for overdue
+                                } else {
+                                    const daysUntil = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+                                    if (daysUntil <= 7) {
+                                        priority = ` [URGENT - ${daysUntil}d]`;
+                                        pdf.setTextColor(150, 120, 80); // Orange for urgent
+                                    }
+                                }
+                                
+                                dateLine += '   |   Due: ' + deadlineDateStr + priority;
                             }
                             pdf.text(dateLine, 25, yPos);
+                            pdf.setTextColor(153, 153, 153);
 
                             yPos += 12;
 
@@ -358,6 +424,15 @@
                     });
                 }
 
+                // Add page numbers to all pages
+                const totalPages = pdf.internal.pages.length - 1;
+                for (let i = 2; i <= totalPages; i++) { // Start from page 2 (skip cover)
+                    pdf.setPage(i);
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text(`Page ${i - 1} of ${totalPages - 1}`, 105, 285, { align: 'center' });
+                }
+
                 // Save PDF
                 const fileName = `Life_Audit_${profile.name || 'Report'}_${currentDate.toISOString().split('T')[0]}.pdf`;
                 pdf.save(fileName);
@@ -375,42 +450,105 @@
         // EXPORT TEXT
         function exportText() {
             if (!checkHasData()) return;
+            
+            const totalGoals = goals.length;
+            const completedGoals = goals.filter(g => g.completed).length;
+            const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+            
             let text = `LIFE AUDIT REPORT\n`;
-            text += `Generated: ${currentDate.toLocaleString()}\n`;
-            text += `${'='.repeat(50)}\n\n`;
+            text += `Generated: ${currentDate.toISOString()}\n`;
+            text += `${'='.repeat(60)}\n\n`;
 
             text += `PERSONAL INFORMATION\n`;
-            text += `Name: ${profile.name || 'N/A'}\n`;
+            text += `${'-'.repeat(60)}\n`;
+            text += `Name: ${cleanTextForPDF(profile.name) || 'N/A'}\n`;
             text += `Age: ${profile.age || 'N/A'}\n`;
-            text += `Occupation: ${profile.occupation || 'N/A'}\n`;
-            text += `Education: ${profile.education || 'N/A'}\n\n`;
+            text += `Occupation: ${cleanTextForPDF(profile.occupation) || 'N/A'}\n`;
+            text += `Education: ${cleanTextForPDF(profile.education) || 'N/A'}\n\n`;
+
+            text += `PERFORMANCE METRICS\n`;
+            text += `${'-'.repeat(60)}\n`;
+            text += `Total XP: ${gamificationData.totalXP || 0}\n`;
+            text += `Achievements Unlocked: ${gamificationData.unlockedAchievements.length}\n`;
+            text += `Current Streak: ${gamificationData.streak || 0} days\n\n`;
 
             text += `GOALS SUMMARY\n`;
-            text += `Total Goals: ${goals.length}\n`;
-            text += `Completed: ${goals.filter(g => g.completed).length}\n`;
-            text += `In Progress: ${goals.filter(g => !g.completed).length}\n\n`;
+            text += `${'-'.repeat(60)}\n`;
+            text += `Total Goals: ${totalGoals}\n`;
+            text += `Completed: ${completedGoals}\n`;
+            text += `In Progress: ${totalGoals - completedGoals}\n`;
+            text += `Success Rate: ${completionRate}%\n\n`;
 
+            text += `GOALS BY CATEGORY\n`;
+            text += `${'-'.repeat(60)}\n`;
+            
             Object.keys(CATEGORIES).forEach(categoryKey => {
                 const category = CATEGORIES[categoryKey];
                 const categoryGoals = goals.filter(g => g.category === categoryKey);
 
                 if (categoryGoals.length > 0) {
-                    text += `\n${category.name.toUpperCase()}\n`;
-                    text += `${'-'.repeat(50)}\n`;
+                    const categoryCompleted = categoryGoals.filter(g => g.completed).length;
+                    const categoryRate = Math.round((categoryCompleted / categoryGoals.length) * 100);
+                    
+                    text += `\n${CATEGORY_LABELS[categoryKey]} ${category.name.toUpperCase()}\n`;
+                    text += `(${categoryCompleted}/${categoryGoals.length} complete - ${categoryRate}%)\n`;
+                    text += `${'-'.repeat(60)}\n`;
 
                     categoryGoals.forEach((goal, index) => {
-                        text += `${index + 1}. [${goal.completed ? 'X' : ' '}] ${goal.title}\n`;
+                        text += `${index + 1}. [${goal.completed ? 'X' : ' '}] ${cleanTextForPDF(goal.title)}\n`;
+                        
                         if (goal.description) {
-                            text += `   ${goal.description}\n`;
+                            text += `   Description: ${cleanTextForPDF(goal.description)}\n`;
                         }
+                        
+                        const createdDate = new Date(goal.createdAt).toISOString().split('T')[0];
+                        text += `   Created: ${createdDate}\n`;
+                        
                         if (goal.deadline) {
                             const deadlineDate = new Date(goal.deadline);
-                            const isOverdue = !goal.completed && deadlineDate < new Date();
-                            text += `   Due: ${deadlineDate.toLocaleDateString()}${isOverdue ? ' (OVERDUE)' : ''}\n`;
+                            const deadlineDateStr = deadlineDate.toISOString().split('T')[0];
+                            const now = new Date();
+                            let status = '';
+                            
+                            if (goal.completed) {
+                                status = ' [COMPLETE]';
+                            } else if (deadlineDate < now) {
+                                status = ' [OVERDUE]';
+                            } else {
+                                const daysUntil = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+                                if (daysUntil <= 7) {
+                                    status = ` [URGENT - ${daysUntil}d]`;
+                                }
+                            }
+                            text += `   Due: ${deadlineDateStr}${status}\n`;
                         }
+                        
+                        if (goal.progress !== undefined && goal.progress !== null) {
+                            text += `   Progress: ${goal.progress}%\n`;
+                        }
+                        
+                        text += `\n`;
                     });
                 }
             });
+
+            // Add achievements section if any are unlocked
+            if (gamificationData.unlockedAchievements.length > 0) {
+                text += `\nACHIEVEMENTS UNLOCKED\n`;
+                text += `${'-'.repeat(60)}\n`;
+                
+                const unlockedIds = gamificationData.unlockedAchievements.map(a => a.id);
+                const unlockedAchievements = ACHIEVEMENTS.filter(a => unlockedIds.includes(a.id));
+                
+                unlockedAchievements.forEach(achievement => {
+                    const unlockedEntry = gamificationData.unlockedAchievements.find(a => a.id === achievement.id);
+                    const unlockedDate = unlockedEntry ? ` (Unlocked: ${new Date(unlockedEntry.unlockedAt).toISOString().split('T')[0]})` : '';
+                    text += `• ${cleanTextForPDF(achievement.name)} +${achievement.xp} XP${unlockedDate}\n`;
+                });
+            }
+
+            text += `\n${'='.repeat(60)}\n`;
+            text += `Report generated by Life Compass - Your Personal Life Audit System\n`;
 
             const textBlob = new Blob([text], { type: 'text/plain' });
             const url = URL.createObjectURL(textBlob);
@@ -420,11 +558,14 @@
             link.download = `Life_Audit_Summary_${currentDate.toISOString().split('T')[0]}.txt`;
             link.click();
 
-            URL.revokeObjectURL(url);
+            // Revoke URL after a delay to ensure download completes
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 1000);
+            
             showExportSuccess();
         }
 
-        // INITIALIZER
         window.addEventListener('load', function() {
             loadAllData();
         });
