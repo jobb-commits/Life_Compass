@@ -17,12 +17,11 @@
         <div class="overall-progress">
             <h2>Overall Progress</h2>
             
-            <!-- Progress Gauge Will Appear Cyclic Hopefully. Works well on desktop, yet to test on mobile devices -->
-             <!-- Improved mobile phone compatibility on css a little-->
+            <!-- Circular progress gauge with animated ring -->
             <div class="circular-progress">
                 <svg class="progress-ring" width="200" height="200">
                     <circle
-                        stroke="#e0e0e0"
+                        stroke="var(--gray-200)"
                         stroke-width="20"
                         fill="transparent"
                         r="80"
@@ -85,30 +84,48 @@
 
     <script>
         
-        // Category definitions (our constants)
+        // Category definitions 
         const CATEGORIES = {
-            career: { name: 'Career/Education', color: 'career' },
-            health: { name: 'Health & Fitness', color: 'health' },
-            finance: { name: 'Finance', color: 'finance' },
-            relationships: { name: 'Relationships/Social', color: 'relationships' },
-            hobbies: { name: 'Skills/Hobbies', color: 'hobbies' }
+            career: { name: 'Career/Education', color: 'career' },    
+            health: { name: 'Health & Fitness', color: 'health' },     
+            finance: { name: 'Finance', color: 'finance' },            
+            relationships: { name: 'Relationships/Social', color: 'relationships' }, 
+            hobbies: { name: 'Skills/Hobbies', color: 'hobbies' }     
         };
 
         let goals = [];
 
         // FUNCTION 1: Load data and initialize dashboard
         function loadData() {
-            // Load user profile
             const savedProfile = localStorage.getItem('lifeAuditProfile');
             if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
+                try {
+                    const profile = JSON.parse(savedProfile);
+                    if (profile.name) {
+                        document.getElementById('userGreeting').textContent = 
+                            `${profile.name}'s Progress Overview`;
+                    } else {
+                        document.getElementById('userGreeting').textContent = 
+                            'Complete your profile to personalize this dashboard';
+                    }
+                } catch (e) {
+                    console.error('Error parsing profile data:', e);
+                    document.getElementById('userGreeting').textContent = 
+                        'Dashboard loaded - profile data could not be parsed';
+                }
+            } else {
                 document.getElementById('userGreeting').textContent = 
-                    `${profile.name}'s Progress Overview`;
+                    'Complete your profile to personalize this dashboard';
             }
 
             // Load goals
             const savedGoals = localStorage.getItem('lifeAuditGoals');
-            goals = savedGoals ? JSON.parse(savedGoals) : [];
+            try {
+                goals = savedGoals ? JSON.parse(savedGoals) : [];
+            } catch (e) {
+                console.error('Error parsing goals data:', e);
+                goals = [];
+            }
 
             // Update visualizations
             updateOverallProgress();
@@ -141,11 +158,12 @@
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
             circle.style.strokeDashoffset = circumference;
 
-            // Trigger animation
+            // Small delay triggers CSS transition animation (set in styles.css)
+            const ANIMATION_DELAY = 100;  // milliseconds
             setTimeout(() => {
                 const offset = circumference - (percentage / 100) * circumference;
                 circle.style.strokeDashoffset = offset;
-            }, 100);
+            }, ANIMATION_DELAY);
         }
 
         
@@ -166,13 +184,16 @@
                 item.className = 'category-progress-item';
                 item.innerHTML = `
                     <div class="category-info">
-	                        <div class="category-name">
-	                            <span>${category.name}</span>
-	                        </div>
+                        <div class="category-name">${category.name}</div>
                         <div class="category-stats">${completed} of ${total} complete</div>
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar-fill progress-bar-${category.color}" 
+                             role="progressbar" 
+                             aria-valuenow="${percentage}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"
+                             aria-label="${category.name}: ${percentage}% complete (${completed} of ${total} goals)"
                              style="width: ${percentage}%">${percentage > 10 ? percentage + '%' : ''}</div>
                     </div>
                 `;
@@ -216,10 +237,13 @@
             const container = document.getElementById('activityList');
             container.innerHTML = '';
 
+            // Configurable recent activity limit
+            const RECENT_ACTIVITY_LIMIT = 5;
+
 	            if (goals.length === 0) {
 	                container.innerHTML = `
 	                    <div class="empty-state">
-	                        <div>No activity yet. Start adding goals!</div>
+	                        <div>No goals yet. Start adding goals to see activity here!</div>
 	                    </div>
 	                `;
 	                return;
@@ -230,21 +254,30 @@
                 new Date(b.createdAt) - new Date(a.createdAt)
             );
 
-            // Show last 5 activities
-            const recentGoals = sortedGoals.slice(0, 5);
+            // Show last N activities
+            const recentGoals = sortedGoals.slice(0, RECENT_ACTIVITY_LIMIT);
 
             recentGoals.forEach(goal => {
                 const category = CATEGORIES[goal.category];
                 const date = new Date(goal.createdAt);
                 const timeAgo = getTimeAgo(date);
+                
+                // Show completion status if goal is completed
+                let statusIcon = category.name.split('/')[0].slice(0, 1);
+                let statusText = `Created ${timeAgo}`;
+                
+                if (goal.completed) {
+                    statusIcon = '✓';
+                    statusText = 'Completed';
+                }
 
                 const item = document.createElement('div');
-                item.className = 'activity-item';
+                item.className = `activity-item ${goal.completed ? 'completed' : ''}`;
 	                item.innerHTML = `
-	                    <div class="activity-icon">${category.name.split('/')[0].slice(0, 1)}</div>
+	                    <div class="activity-icon" title="${goal.completed ? 'Completed' : 'In Progress'}">${statusIcon}</div>
 	                    <div class="activity-content">
 	                        <div class="activity-text">${goal.title}</div>
-	                        <div class="activity-time">${timeAgo} • ${category.name}</div>
+	                        <div class="activity-time">${statusText} • ${category.name}</div>
 	                    </div>
 	                `;
 
@@ -252,17 +285,29 @@
             });
         }
         
-        // FUNCTION 6: Calculate 'time ago' text        
+        // FUNCTION 6: Calculate 'time ago' text
+        // Uses named constants for clarity and maintainability
         function getTimeAgo(date) {
             const now = new Date();
             const secondsAgo = Math.floor((now - date) / 1000);
 
-            if (secondsAgo < 60) return 'Just now';
-            if (secondsAgo < 3600) return Math.floor(secondsAgo / 60) + ' minutes ago';
-            if (secondsAgo < 86400) return Math.floor(secondsAgo / 3600) + ' hours ago';
-            if (secondsAgo < 604800) return Math.floor(secondsAgo / 86400) + ' days ago';
+            // Define time units in seconds
+            const MINUTE = 60;
+            const HOUR = 60 * MINUTE;
+            const DAY = 24 * HOUR;
+            const WEEK = 7 * DAY;
+            const MONTH = 30 * DAY;
+            const YEAR = 365 * DAY;
+
+            if (secondsAgo < MINUTE) return 'Just now';
+            if (secondsAgo < HOUR) return Math.floor(secondsAgo / MINUTE) + ' minute' + (Math.floor(secondsAgo / MINUTE) !== 1 ? 's' : '') + ' ago';
+            if (secondsAgo < DAY) return Math.floor(secondsAgo / HOUR) + ' hour' + (Math.floor(secondsAgo / HOUR) !== 1 ? 's' : '') + ' ago';
+            if (secondsAgo < WEEK) return Math.floor(secondsAgo / DAY) + ' day' + (Math.floor(secondsAgo / DAY) !== 1 ? 's' : '') + ' ago';
+            if (secondsAgo < MONTH) return Math.floor(secondsAgo / WEEK) + ' week' + (Math.floor(secondsAgo / WEEK) !== 1 ? 's' : '') + ' ago';
+            if (secondsAgo < YEAR) return Math.floor(secondsAgo / MONTH) + ' month' + (Math.floor(secondsAgo / MONTH) !== 1 ? 's' : '') + ' ago';
             
-            return date.toLocaleDateString();
+            // Use ISO format for very old dates (consistent with rest of app)
+            return date.toISOString().split('T')[0];
         }
 
         // Load everything when page loads        
