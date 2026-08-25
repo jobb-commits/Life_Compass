@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Compass-Basic User Profile</title>
+    <title>Sign Up</title>
     
 </head>
 <body class="page-profile">
@@ -19,9 +19,29 @@
         <p class="subtitle">Let's Start By Understanding Where You Are in Life</p>
 
         <div id="successMessage" class="success-message">Profile saved successfully!</div>
+        <div id="authMessage" class="success-message" style="display:none;"></div>
 
         <form id="profileForm">
-            <!-- Gather Basic User Info -->
+            <div class="form-section" id="accountSection">
+                <h2 class="section-title">Your Account</h2>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="At least 6 characters" minlength="6" autocomplete="new-password">
+                </div>
+
+                <p style="font-size: 0.85em; opacity: 0.7;">
+                    Already have an account? <a href="login.html">Sign in</a> instead.
+                </p>
+            </div>
+
+            <div id="signedInAs" style="display:none; font-size: 0.9em; opacity: 0.75; margin-bottom: 20px;"></div>
+
             <div class="form-section">
                 <h2 class="section-title">Basic Information</h2>
                 
@@ -72,7 +92,6 @@
                 </div>
             </div>
 
-            <!--User Long and Short Term Goal Selection -->
             <div class="form-section">
                 <h2 class="section-title">Your Goals</h2>
                 
@@ -87,34 +106,29 @@
                 </div>
             </div>
 
-            <!-- Buttons -->
             <div class="button-group">
-                <button type="submit" class="btn-primary">Save Profile</button>
-                <button type="button" class="btn-secondary" id="loadBtn">Load Saved Profile</button>
+                <button type="submit" class="btn-primary" id="submitBtn">Sign Up &amp; Save Profile</button>
             </div>
             
-            <!-- Next Button -->
             <div style="margin-top: 25px; text-align: center;">
                 <a href="deep-profile.html" class="btn btn-primary" style="display: inline-block; text-decoration: none; padding: 14px 40px; font-size: 16px;">Next: Deep Profile →</a>
             </div>
         </form>
     </div>
 
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script>
         
         const form = document.getElementById('profileForm');
-        const loadBtn = document.getElementById('loadBtn');
         const successMessage = document.getElementById('successMessage');
+        const authMessage = document.getElementById('authMessage');
+        const accountSection = document.getElementById('accountSection');
+        const signedInAs = document.getElementById('signedInAs');
+        const submitBtn = document.getElementById('submitBtn');
 
-    
-        // FUNCTION 1: Save profile data
-        
-        form.addEventListener('submit', function(event) {
-            // Prevent form from refreshing the page 
-            event.preventDefault();
-            
-            // Create object to store all of form data
-            const profileData = {
+        function getFormProfileData() {
+            return {
                 name: document.getElementById('name').value,
                 age: document.getElementById('age').value,
                 gender: document.getElementById('gender').value,
@@ -123,69 +137,113 @@
                 education: document.getElementById('education').value,
                 shortTermGoals: document.getElementById('shortTermGoals').value,
                 longTermGoals: document.getElementById('longTermGoals').value,
-                savedDate: new Date().toISOString() // Save when this was created
+                savedDate: new Date().toISOString()
             };
+        }
 
-            // localStorage TOsave data in the browser
-            // Only accepts text, so we convert our object to JSON text
-            localStorage.setItem('lifeAuditProfile', JSON.stringify(profileData));
-            
-            showSuccessMessage();
-            
-            console.log('Profile saved:', profileData);
-        });
+        function fillForm(profileData) {
+            document.getElementById('name').value = profileData.name || '';
+            document.getElementById('age').value = profileData.age || '';
+            document.getElementById('gender').value = profileData.gender || '';
+            document.getElementById('occupation').value = profileData.occupation || '';
+            document.getElementById('location').value = profileData.location || '';
+            document.getElementById('education').value = profileData.education || '';
+            document.getElementById('shortTermGoals').value = profileData.shortTermGoals || '';
+            document.getElementById('longTermGoals').value = profileData.longTermGoals || '';
+        }
 
-        
-        // FUNCTION 2: Load saved profile data
-        
-        loadBtn.addEventListener('click', function() {
-            const savedData = localStorage.getItem('lifeAuditProfile');
-            
-            if (savedData) {
-                // Convert the JSON text back into a JavaScript object
-                const profileData = JSON.parse(savedData);
-                
-                // Fill in all the form fields with the saved data
-                document.getElementById('name').value = profileData.name;
-                document.getElementById('age').value = profileData.age;
-                document.getElementById('gender').value = profileData.gender;
-                document.getElementById('occupation').value = profileData.occupation;
-                document.getElementById('location').value = profileData.location || '';
-                document.getElementById('education').value = profileData.education;
-                document.getElementById('shortTermGoals').value = profileData.shortTermGoals;
-                document.getElementById('longTermGoals').value = profileData.longTermGoals;
-                
-                showSuccessMessage('Profile loaded successfully!');
+        // FUNCTION 1: Save/sign-up handler
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const profileData = getFormProfileData();
+            const currentUser = await db.getUser();
+
+            if (currentUser) {
+                // Already signed in: just save the profile.
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving…';
+                try {
+                    await db.setItem('lifeAuditProfile', profileData);
+                    showSuccessMessage();
+                } catch (err) {
+                    showAuthMessage(err.message, true);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Profile';
+                }
+                return;
+            }
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showAuthMessage('Please enter an email and password to create your account.', true);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing up…';
+
+            const { data, error } = await auth.signUp(email, password);
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign Up & Save Profile';
+
+            if (error) {
+                showAuthMessage(error.message, true);
+                return;
+            }
+
+            if (data.session) {
+                await db.setItem('lifeAuditProfile', profileData);
+                showSuccessMessage();
+                window.location.href = 'deep-profile.html';
             } else {
-                alert('No saved profile found. Please fill out and save your profile first.');
+                localStorage.setItem('pendingLifeAuditProfile', JSON.stringify(profileData));
+                showAuthMessage('Check your email to confirm your account, then sign in to finish setting up your profile.', false);
             }
         });
 
-        
-        // FUNCTION 3: Success message
-        
+        // FUNCTION 2: Success message helpers
         function showSuccessMessage(message = ' Profile saved successfully!') {
             successMessage.textContent = message;
             successMessage.classList.add('show');
-            
-            // Hide message after 3 seconds
             setTimeout(function() {
                 successMessage.classList.remove('show');
             }, 3000);
         }
 
-        // Automatically shows a welcome message to areturning user
-        window.addEventListener('load', function() {
-            const savedData = localStorage.getItem('lifeAuditProfile');
-            if (savedData) {
-                const profileData = JSON.parse(savedData);
-                showWelcomeMessage(profileData.name);
-                console.log('Found saved profile! Click "Load Saved Profile" to restore it.');
+        function showAuthMessage(message, isError) {
+            authMessage.textContent = message;
+            authMessage.style.display = 'block';
+            authMessage.style.background = isError ? '#fdf0f0' : '';
+            authMessage.style.color = isError ? '#b02a2a' : '';
+        }
+
+
+        window.addEventListener('load', async function() {
+            const user = await db.getUser();
+
+            if (user) {
+                accountSection.style.display = 'none';
+                document.getElementById('email').removeAttribute('required');
+                document.getElementById('password').removeAttribute('required');
+                signedInAs.style.display = 'block';
+                signedInAs.textContent = `Signed in as ${user.email}`;
+                submitBtn.textContent = 'Save Profile';
+
+                const profileData = await db.getItem('lifeAuditProfile');
+                if (profileData) {
+                    fillForm(profileData);
+                    showWelcomeMessage(profileData.name);
+                }
             }
         });
 
         
-        // FUNCTION 4: Display our dynamic welcome banner
+        // FUNCTION 4: Display dynamic welcome banner
         
         function showWelcomeMessage(name) {
             const welcomeBanner = document.getElementById('welcomeBanner');
