@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Compass - Progress Dashboard</title>
+    <title>Life Compass - Dashboard</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -16,8 +16,6 @@
 
         <div class="overall-progress">
             <h2>Overall Progress</h2>
-            
-            <!-- Circular progress gauge with animated ring -->
             <div class="circular-progress">
                 <svg class="progress-ring" width="200" height="200">
                     <circle
@@ -96,11 +94,12 @@
         let goals = [];
 
         // FUNCTION 1: Load data and initialize dashboard
-        function loadData() {
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
+        async function loadData() {
+            await auth.requireAuth();
+            const savedProfile = await db.getItem('lifeAuditProfile');
             if (savedProfile) {
                 try {
-                    const profile = JSON.parse(savedProfile);
+                    const profile = savedProfile;
                     if (profile.name) {
                         document.getElementById('userGreeting').textContent = 
                             `${profile.name}'s Progress Overview`;
@@ -119,13 +118,8 @@
             }
 
             // Load goals
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
-            try {
-                goals = savedGoals ? JSON.parse(savedGoals) : [];
-            } catch (e) {
-                console.error('Error parsing goals data:', e);
-                goals = [];
-            }
+            const savedGoals = await db.getItem('lifeAuditGoals');
+            goals = savedGoals || [];
 
             // Update visualizations
             updateOverallProgress();
@@ -158,7 +152,6 @@
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
             circle.style.strokeDashoffset = circumference;
 
-            // Small delay triggers CSS transition animation (set in styles.css)
             const ANIMATION_DELAY = 100;  // milliseconds
             setTimeout(() => {
                 const offset = circumference - (percentage / 100) * circumference;
@@ -286,7 +279,6 @@
         }
         
         // FUNCTION 6: Calculate 'time ago' text
-        // Uses named constants for clarity and maintainability
         function getTimeAgo(date) {
             const now = new Date();
             const secondsAgo = Math.floor((now - date) / 1000);
@@ -311,10 +303,12 @@
         }
 
         // Load everything when page loads        
-        window.addEventListener('load', function() {
-            loadData();
+        window.addEventListener('load', async function() {
+            await loadData();
         });
     </script>
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script src="nav.js"></script>
 </body>
 </html>

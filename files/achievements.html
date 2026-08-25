@@ -61,7 +61,6 @@
       transform: scale(1.04);
     }
 
-    /* Hover on locked previews the colour */
     .achievement-card.locked:hover .achievement-art img {
       filter: grayscale(40%) brightness(0.8);
     }
@@ -383,22 +382,23 @@
         
         // FUNCTION 1: Load all data
         
-        function loadData() {
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
+        async function loadData() {
+            await auth.requireAuth();
+            const savedProfile = await db.getItem('lifeAuditProfile');
             if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
+                const profile = savedProfile;
                 document.getElementById('userGreeting').textContent = 
                     `${profile.name}'s Achievements`;
             }
 
             // Load goals
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
-            goals = savedGoals ? JSON.parse(savedGoals) : [];
+            const savedGoals = await db.getItem('lifeAuditGoals');
+            goals = savedGoals || [];
 
             // Load gamification data
-            const savedGamification = localStorage.getItem('lifeAuditGamification');
+            const savedGamification = await db.getItem('lifeAuditGamification');
             if (savedGamification) {
-                gamificationData = JSON.parse(savedGamification);
+                gamificationData = savedGamification;
             }
 
             updateStreak();
@@ -705,14 +705,16 @@
         
         // FUNCTION 10: Save gamification data
         
-        function saveGamificationData() {
-            localStorage.setItem('lifeAuditGamification', JSON.stringify(gamificationData));
+        async function saveGamificationData() {
+            await db.setItem('lifeAuditGamification', gamificationData);
         }
 
-        window.addEventListener('load', function() {
-            loadData();
+        window.addEventListener('load', async function() {
+            await loadData();
         });
     </script>
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script src="nav.js"></script>
 </body>
 </html>

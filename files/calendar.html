@@ -46,9 +46,10 @@
         let goals = [];
         let currentDate = new Date();
 
-        function loadGoals() {
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
-            goals = savedGoals ? JSON.parse(savedGoals) : [];
+        async function loadGoals() {
+            await auth.requireAuth();
+            const savedGoals = await db.getItem('lifeAuditGoals');
+            goals = savedGoals || [];
             
             // part should filter only goals with deadlines
             goals = goals.filter(g => g.deadline);
@@ -209,12 +210,14 @@
             return names[category] || category;
         }
 
-        window.addEventListener('load', function() {
-            loadGoals();
+        window.addEventListener('load', async function() {
+            await loadGoals();
             renderCalendar();
             renderUpcoming();
         });
     </script>
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script src="nav.js"></script>
 </body>
 </html>
