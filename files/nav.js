@@ -33,12 +33,24 @@ function injectNav() {
           <span class="nav-label">${link.label}</span>
         </a>
       `).join('')}
+      <a href="#" id="navSignOut" class="global-nav-link">
+        <i data-lucide="log-out" class="nav-icon"></i>
+        <span class="nav-label">Sign Out</span>
+      </a>
     </div>
   `;
 
   document.body.insertBefore(nav, document.body.firstChild);
 
   lucide.createIcons();
+
+  const signOutLink = document.getElementById('navSignOut');
+  if (signOutLink && typeof auth !== 'undefined') {
+    signOutLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      auth.signOut();
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
