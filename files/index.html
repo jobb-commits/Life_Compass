@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Compass-Index</title>
+    <title>Life Compass</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         body.page-index .hero {
@@ -62,10 +62,10 @@
             <h1>Life Compass</h1>
             <p class="tagline">Plan Your Best Life</p>
             <p class="description">A complete goal tracking and life planning system. Set goals, track progress,
-                unlock achievements and get AI powered recommendations. All saved privately in your browser.</p>
-            <a href="life-audit.html" class="cta-button">Get Started Now →</a>
-            <p style="margin-top: 16px; font-size: 12px; color: var(--gray-500); letter-spacing: 0.03em;">
-                No account needed·&nbsp;Your data never leaves this device
+                unlock achievements and get AI powered recommendations. Synced securely to your account.</p>
+            <a href="life-audit.html" class="cta-button" id="ctaButton">Get Started Now →</a>
+            <p style="margin-top: 16px; font-size: 12px; color: var(--gray-500); letter-spacing: 0.03em;" id="ctaSubtext">
+                Free account · Your data syncs across your devices
             </p>
         </div>
 
@@ -134,19 +134,26 @@
         </div>
 
         <div class="footer">
-            <p>Built with passion·&nbsp;All your data stays private in your browser.</p>
+            <p>Built with passion·&nbsp;Your data is private to your account.</p>
         </div>
     </div>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
             lucide.createIcons();
 
-            // Show quick links only for returning users
-            const saved = localStorage.getItem('lifeAuditProfile');
-            if (saved) {
+            // Show quick links (and adjust the CTA) only for signed-in users
+            const user = await db.getUser();
+            if (user) {
                 document.getElementById('quickLinks').style.display = 'block';
+
+                const cta = document.getElementById('ctaButton');
+                cta.textContent = 'Go to Dashboard →';
+                cta.href = 'dashboard.html';
+                document.getElementById('ctaSubtext').textContent = `Signed in as ${user.email}`;
             }
         });
     </script>
