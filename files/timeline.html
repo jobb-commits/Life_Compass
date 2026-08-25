@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Compass- Timeline & Milestones</title>
+    <title>Timeline & Milestones</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -145,11 +145,12 @@
         
         // FUNCTION 1: Load user data
         
-        function loadData() {
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
+        async function loadData() {
+            await auth.requireAuth();
+            const savedProfile = await db.getItem('lifeAuditProfile');
             
             if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
+                const profile = savedProfile;
                 userAge = parseInt(profile.age);
                 
                 document.getElementById('userInfo').textContent = 
@@ -258,10 +259,12 @@
         }
 
         
-        window.addEventListener('load', function() {
-            loadData();
+        window.addEventListener('load', async function() {
+            await loadData();
         });
     </script>
+      <script src="supabase-client.js"></script>
+      <script src="db.js"></script>
       <script src="nav.js"></script>
 </body>
 </html>
