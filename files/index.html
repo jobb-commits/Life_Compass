@@ -145,7 +145,6 @@
         document.addEventListener('DOMContentLoaded', async function () {
             lucide.createIcons();
 
-            // Show quick links (and adjust the CTA) only for signed-in users
             const user = await db.getUser();
             if (user) {
                 document.getElementById('quickLinks').style.display = 'block';
