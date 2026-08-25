@@ -72,7 +72,6 @@
     </div>
 
     <script>
-        // Set up categories, load data
         const CATEGORIES = {
             career: {
                 name: 'Career/Education',
@@ -129,11 +128,11 @@
         };
 
         // FUNCTION 1: Load user profile, should also show dynamic greeting from provided set
-        function loadUserProfile() {
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
+        async function loadUserProfile() {
+            const savedProfile = await db.getItem('lifeAuditProfile');
             
             if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
+                const profile = savedProfile;
                 document.getElementById('userGreeting').textContent = 
                     `Welcome, ${profile.name}! Let's organize your goals.`;
             } else {
@@ -142,27 +141,24 @@
             }
         }
 
-        // FUNCTION 2: Load saved goals from localStorage
-        function loadGoals() {
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
+        // FUNCTION 2: Load saved goals from Supabase
+        async function loadGoals() {
+            await auth.requireAuth();
+            const savedGoals = await db.getItem('lifeAuditGoals');
             
-            if (savedGoals) {
-                goals = JSON.parse(savedGoals);
-            } else {
-                goals = [];
-            }
+            goals = savedGoals || [];
             
             displayGoals();
             updateStats();
         }
 
-        // FUNCTION 3: Save goals to localStorage
-        function saveGoals() {
-            localStorage.setItem('lifeAuditGoals', JSON.stringify(goals));
+        // FUNCTION 3: Save goals to Supabase
+        async function saveGoals() {
+            await db.setItem('lifeAuditGoals', goals);
         }
 
         // FUNCTION 4: Add a new goal
-        document.getElementById('goalForm').addEventListener('submit', function(e) {
+        document.getElementById('goalForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Get form values
@@ -206,7 +202,7 @@
             goals.push(newGoal);
             
             // Save and refresh display
-            saveGoals();
+            await saveGoals();
             displayGoals();
             updateStats();
             
@@ -325,7 +321,7 @@
         }
 
         // FUNCTION 7: Toggle goal completion 
-        function toggleGoal(goalId) {
+        async function toggleGoal(goalId) {
             const goal = goals.find(g => g.id === goalId);
             if (goal) {
                 const wasCompleted = goal.completed;
@@ -334,23 +330,23 @@
                 // Award XP upon completion of a goal
                 if (goal.completed && !wasCompleted) {
                     goal.completedAt = new Date().toISOString();
-                    awardXP(50, `Completed: ${goal.title}`);
+                    await awardXP(50, `Completed: ${goal.title}`);
                 } else if (!goal.completed && wasCompleted) {
                     // Remove XP if unchecking a completed goal
                     goal.completedAt = null;
                 }
                 
-                saveGoals();
+                await saveGoals();
                 displayGoals();
                 updateStats();
             }
         }
 
         // FUNCTIOn to Award XP and update gamification
-        function awardXP(amount, reason) {
+        async function awardXP(amount, reason) {
             // Load gamification data
-            let savedGamification = localStorage.getItem('lifeAuditGamification');
-            let data = savedGamification ? JSON.parse(savedGamification) : {
+            let savedGamification = await db.getItem('lifeAuditGamification');
+            let data = savedGamification || {
                 totalXP: 0,
                 unlockedAchievements: [],
                 streak: 0,
@@ -361,7 +357,7 @@
             data.totalXP += amount;
             
             // Save
-            localStorage.setItem('lifeAuditGamification', JSON.stringify(data));
+            await db.setItem('lifeAuditGamification', data);
             
             // Show notification
             showXPNotification(amount, reason);
@@ -413,10 +409,10 @@
         document.head.appendChild(style);
 
         // FUNCTION 8: Goal deletion function
-        function deleteGoal(goalId) {
+        async function deleteGoal(goalId) {
             if (confirm('Are you sure you want to delete this goal?')) {
                 goals = goals.filter(g => g.id !== goalId);
-                saveGoals();
+                await saveGoals();
                 displayGoals();
                 updateStats();
             }
@@ -434,9 +430,9 @@
         }
 
         // Run when page loads
-        window.addEventListener('load', function() {
-            loadUserProfile();
-            loadGoals();
+        window.addEventListener('load', async function() {
+            await loadUserProfile();
+            await loadGoals();
             
             // Add date input auto-formatting (DD/MM/YYYY)
             const deadlineInput = document.getElementById('goalDeadline');
@@ -454,6 +450,8 @@
             });
         });
     </script>
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script src="nav.js"></script>
 </body>
 </html>

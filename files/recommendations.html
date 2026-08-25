@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Compass - Recommendations</title>
+    <title>Recommendations</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         .meta-icon { width: 14px; height: 14px; vertical-align: middle; display: inline-block; }
@@ -299,22 +299,23 @@ Only populate the categories listed above. Leave others as empty arrays [].
 
         // FUNCTION 1: Load data
         async function loadData() {
+            await auth.requireAuth();
             // Load profile
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
+            const savedProfile = await db.getItem('lifeAuditProfile');
             if (savedProfile) {
-                profile = JSON.parse(savedProfile);
+                profile = savedProfile;
                 userAge = parseInt(profile.age);
                 document.getElementById('userGreeting').textContent = 
                     `${profile.name}, here are resources matched to your goals`;
             }
 
             // Load goals
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
-            goals = savedGoals ? JSON.parse(savedGoals) : [];
+            const savedGoals = await db.getItem('lifeAuditGoals');
+            goals = savedGoals || [];
 
             // Load deep profile
-            const savedDeep = localStorage.getItem('lifeAuditDeepProfile');
-            deepProfile = savedDeep ? JSON.parse(savedDeep) : {};
+            const savedDeep = await db.getItem('lifeAuditDeepProfile');
+            deepProfile = savedDeep || {};
 
             // Trigger the AI fetch 
             await fetchAIRecommendations();
@@ -324,8 +325,8 @@ Only populate the categories listed above. Leave others as empty arrays [].
         }
 
         // FUNCTION 2: Display saved favorites
-        function displayFavorites() {
-            const savedArray = getSavedResources();
+        async function displayFavorites() {
+            const savedArray = await getSavedResources();
 
             const favoritesSection = document.getElementById('favoritesSection');
             const favoritesGrid = document.getElementById('favoritesGrid');
@@ -352,16 +353,16 @@ Only populate the categories listed above. Leave others as empty arrays [].
         // Helper: read savedResources from localStorage, migrating the old
         // "array of title strings" format to "array of full resource objects"
         // if needed, so favorites saved before this fix aren't lost
-        function getSavedResources() {
-            const saved = localStorage.getItem('savedResources');
-            let savedArray = saved ? JSON.parse(saved) : [];
+        async function getSavedResources() {
+            const saved = await db.getItem('savedResources');
+            let savedArray = saved || [];
 
             const isOldFormat = savedArray.length > 0 && typeof savedArray[0] === 'string';
             if (isOldFormat) {
                 const migrated = savedArray
                     .map(title => findResourceByTitle(title))
                     .filter(Boolean); // drop titles that no longer match anything
-                localStorage.setItem('savedResources', JSON.stringify(migrated));
+                await db.setItem('savedResources', migrated);
                 return migrated;
             }
 
@@ -402,14 +403,14 @@ Only populate the categories listed above. Leave others as empty arrays [].
         }
 
         // FUNCTION 4: Remove from favorites
-        function removeFavorite(title) {
-            let savedArray = getSavedResources();
+        async function removeFavorite(title) {
+            let savedArray = await getSavedResources();
             
             savedArray = savedArray.filter(item => item.title !== title);
-            localStorage.setItem('savedResources', JSON.stringify(savedArray));
+            await db.setItem('savedResources', savedArray);
             
             // Refresh display
-            displayFavorites();
+            await displayFavorites();
             
             alert(`"${title}" removed from favorites!`);
         }
@@ -542,22 +543,22 @@ Only populate the categories listed above. Leave others as empty arrays [].
         }
 
         // FUNCTION 10: Save resource to favorites
-        function saveResource(title) {
+        async function saveResource(title) {
             // Find the full resource object so it survives a refresh
             // even if the AI returns a different RESOURCES set next time
             const resource = findResourceByTitle(title);
             if (!resource) return;
 
-            let savedArray = getSavedResources();
+            let savedArray = await getSavedResources();
 
             const alreadySaved = savedArray.some(item => item.title === title);
 
             if (!alreadySaved) {
                 savedArray.push(resource);
-                localStorage.setItem('savedResources', JSON.stringify(savedArray));
+                await db.setItem('savedResources', savedArray);
 
                 // Refresh favorites display
-                displayFavorites();
+                await displayFavorites();
 
                 alert(`"${title}" saved to your favorites!`);
             } else {
@@ -575,10 +576,12 @@ Only populate the categories listed above. Leave others as empty arrays [].
         }
 
         // INITIALIZE
-        window.addEventListener('load', function() {
-            loadData();
+        window.addEventListener('load', async function() {
+            await loadData();
         });
     </script>
+      <script src="supabase-client.js"></script>
+      <script src="db.js"></script>
       <script src="nav.js"></script>
 </body>
 </html>

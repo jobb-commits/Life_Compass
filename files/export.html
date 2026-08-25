@@ -80,23 +80,24 @@
         let gamificationData = {};
         let currentDate = new Date();
 
-        function loadAllData() {
+        async function loadAllData() {
+            await auth.requireAuth();
             // Load profile
             //Don't touch anything!!
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
+            const savedProfile = await db.getItem('lifeAuditProfile');
             if (savedProfile) {
-                profile = JSON.parse(savedProfile);
+                profile = savedProfile;
                 document.getElementById('userGreeting').textContent = 
                     `${profile.name}, your comprehensive report is ready to download`;
             }
 
             // Load goals
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
-            goals = savedGoals ? JSON.parse(savedGoals) : [];
+            const savedGoals = await db.getItem('lifeAuditGoals');
+            goals = savedGoals || [];
 
             // Load gamification
-            const savedGamification = localStorage.getItem('lifeAuditGamification');
-            gamificationData = savedGamification ? JSON.parse(savedGamification) : {
+            const savedGamification = await db.getItem('lifeAuditGamification');
+            gamificationData = savedGamification || {
                 totalXP: 0,
                 unlockedAchievements: [],
                 streak: 0
@@ -566,10 +567,12 @@
             showExportSuccess();
         }
 
-        window.addEventListener('load', function() {
-            loadAllData();
+        window.addEventListener('load', async function() {
+            await loadAllData();
         });
     </script>
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script src="nav.js"></script>
 </body>
 </html>

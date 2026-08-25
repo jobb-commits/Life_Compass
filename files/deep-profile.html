@@ -968,13 +968,9 @@
 
   // GOAL "WHY" CARDS
 
-  function buildGoalWhyCards() {
+  async function buildGoalWhyCards() {
     const container = document.getElementById('goalWhyContainer');
-    const saved = localStorage.getItem('lifeAuditGoals');
-    if (!saved) return;
-
-    let goals;
-    try { goals = JSON.parse(saved); } catch(e) { return; }
+    const goals = await db.getItem('lifeAuditGoals');
     if (!goals || !goals.length) return;
 
     container.innerHTML = goals.map(goal => `
@@ -1160,22 +1156,21 @@
     };
   }
 
-  function saveProfile() {
+  async function saveProfile() {
     const data = gatherData();
-    localStorage.setItem('lifeAuditDeepProfile', JSON.stringify(data));
+    await db.setItem('lifeAuditDeepProfile', data);
     const status = document.getElementById('saveStatus');
     status.textContent = 'Saved';
     status.classList.add('show');
     setTimeout(() => status.classList.remove('show'), 2500);
   }
 
-  function loadProfile() {
-    const raw = localStorage.getItem('lifeAuditDeepProfile');
-    if (!raw) {
-      alert('No saved deep profile found.');
+  async function loadProfile(silent) {
+    const data = await db.getItem('lifeAuditDeepProfile');
+    if (!data) {
+      if (!silent) alert('No saved deep profile found.');
       return;
     }
-    const data = JSON.parse(raw);
 
     // Wheel
     if (data.wheelValues) {
@@ -1242,15 +1237,16 @@
   }
 
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    await auth.requireAuth();
     buildSliders();
     drawRadar();
-    buildGoalWhyCards();
+    await buildGoalWhyCards();
     initChips();
     initSkillInput();
 
     // Auto-load if saved data exists
-    if (localStorage.getItem('lifeAuditDeepProfile')) loadProfile();
+    await loadProfile(true);
 
     // Auto-save listeners
     document.querySelectorAll('input, select, textarea').forEach(el => {
@@ -1262,6 +1258,8 @@
     window.addEventListener('resize', drawRadar);
   });
   </script>
+  <script src="supabase-client.js"></script>
+  <script src="db.js"></script>
   <script src="nav.js"></script>
 </body>
 </html>
