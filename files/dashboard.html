@@ -48,6 +48,7 @@
                 <div class="stat-box">
                     <div class="stat-number" id="completedStat">0</div>
                     <div class="stat-label">Completed</div>
+                    <div class="stat-label" id="allTimeStat" style="font-size:11px;opacity:.65;margin-top:2px;">0 all-time</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-number" id="inProgressStat">0</div>
@@ -90,6 +91,7 @@
         };
 
         let goals = [];
+        let lifetimeCompleted = 0; 
 
         function escapeHtml(str) {
             return String(str ?? '')
@@ -124,7 +126,13 @@
             const savedGoals = await db.getItem('lifeAuditGoals');
             goals = savedGoals || [];
 
-            // Update visualizations
+            try {
+                const gam = await db.getItem('lifeAuditGamification');
+                lifetimeCompleted = (gam && gam.totalCompleted) || 0;
+            } catch (err) {
+                console.error('Could not load lifetime counter:', err);
+            }
+
             updateOverallProgress();
             updateCategoryProgress();
             updateComparisonChart();
@@ -137,11 +145,11 @@
             const completed = goals.filter(g => g.completed).length;
             const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-            // Update percentage text
             document.getElementById('progressPercentage').textContent = percentage + '%';
 
             document.getElementById('totalGoalsStat').textContent = total;
             document.getElementById('completedStat').textContent = completed;
+            document.getElementById('allTimeStat').textContent = `${Math.max(lifetimeCompleted, completed)} all-time`;
             document.getElementById('inProgressStat').textContent = total - completed;
             document.getElementById('completionRate').textContent = percentage + '%';
 
@@ -152,14 +160,15 @@
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
             circle.style.strokeDashoffset = circumference;
 
-            const ANIMATION_DELAY = 100;  // milliseconds
+            const ANIMATION_DELAY = 100;  
             setTimeout(() => {
                 const offset = circumference - (percentage / 100) * circumference;
                 circle.style.strokeDashoffset = offset;
             }, ANIMATION_DELAY);
         }
+
         
-        // FUNCTION 3: Update progress bars        
+        // FUNCTION 3: Update progress bars
         function updateCategoryProgress() {
             const container = document.getElementById('categoryProgressList');
             container.innerHTML = '';
@@ -193,7 +202,8 @@
             });
         }
 
-        // FUNCTION 4: Update comparison bar chart        
+        
+        // FUNCTION 4: Update comparison bar chart
         function updateComparisonChart() {
             const container = document.getElementById('barChart');
             container.innerHTML = '';
@@ -225,8 +235,7 @@
         function updateRecentActivity() {
             const container = document.getElementById('activityList');
             container.innerHTML = '';
-
-            // Configurable recent activity limit
+            
             const RECENT_ACTIVITY_LIMIT = 5;
 
 	            if (goals.length === 0) {
