@@ -1020,8 +1020,6 @@
     });
   }
 
-  // Chips (selectable tags)
-
   function initChips() {
     document.querySelectorAll('.chip-group').forEach(group => {
       const isSingle = group.dataset.single === 'true';
@@ -1041,7 +1039,6 @@
 
   function syncHiddenInput(group) {
     const selected = [...group.querySelectorAll('.chip.selected')].map(c => c.dataset.value);
-    // Find associated hidden input — look for next sibling or by convention
     const hiddenId = group.id.replace('Chips', 'Value')
                            .replace('Chips', 'Style')
                            .replace('Chips', 'Tolerance')
@@ -1071,14 +1068,11 @@
     });
   }
 
-  //Skills Input
-
   let skills = [];
 
   function initSkillInput() {
     const input = document.getElementById('skillInput');
 
-    // Desktop / hardware keyboards: normal keydown works fine here.
     input.addEventListener('keydown', e => {
       if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
         e.preventDefault();
@@ -1128,8 +1122,6 @@
     container.appendChild(input);
     document.getElementById('topSkills').value = skills.join(',');
   }
-
- // Save and load
 
   function gatherData() {
     return {
