@@ -78,14 +78,32 @@
             hobbies: []
         };
 
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Only allow http(s) links from AI output (blocks javascript: URLs)
+        function safeLink(link) {
+            return /^https?:\/\//i.test(link || '') ? link : '';
+        }
+
+        function actionLabel(type) {
+            return type === 'book' ? 'Learn More'
+                 : type === 'course' ? 'Enroll'
+                 : type === 'app' ? 'Download'
+                 : type === 'tool' ? 'Try It'
+                 : 'Visit';
+        }
+
         // Core App Variables
         let goals = [];
         let currentFilter = 'all';
         let userAge = 0;
         let profile = {};
         let deepProfile = {};
-
-        
+ 
         //AI INTEGRATION (Used Vercel Backend)
         async function fetchAIRecommendations() {
             // Show loading UI
@@ -239,12 +257,24 @@ Only populate the categories listed above. Leave others as empty arrays [].
             `.trim();
 
             try {
+                // Send the Supabase session token so the backend can verify the caller is signed in
+                const client = await window.supabaseReady;
+                const { data: sessionData } = await client.auth.getSession();
+                const token = sessionData && sessionData.session ? sessionData.session.access_token : '';
+
                 const response = await fetch('/api/gemini', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({ prompt })
                 });
 
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return;
+                }
                 if (!response.ok) throw new Error('Backend response not OK');
 
                 const data = await response.json();
@@ -263,10 +293,17 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 }
 
                 // Overwrite fallback data with AI data
-                RESOURCES = aiResult.resources;
+                const clean = { career: [], health: [], finance: [], relationships: [], hobbies: [] };
+                Object.keys(clean).forEach(cat => {
+                    const list = aiResult.resources && aiResult.resources[cat];
+                    clean[cat] = Array.isArray(list)
+                        ? list.filter(r => r && r.title).map(r => ({ ...r, tags: Array.isArray(r.tags) ? r.tags : [] }))
+                        : [];
+                });
+                RESOURCES = clean;
 
                 // Render UI
-                renderAIInsights(aiResult.insights);
+                renderAIInsights(Array.isArray(aiResult.insights) ? aiResult.insights : []);
                 displayResources();
                 displayFavorites();
 
@@ -274,8 +311,8 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 console.error("AI Integration Error:", error);
                 const message = error.message.includes('truncated')
                     ? "The AI response was too long and got cut off. Showing fallback resources instead — try refreshing."
-                    : "Failed to load AI insights. Make sure your Vercel backend is running and reachable.";
-                document.getElementById('insightsCards').innerHTML = `<div class='insight-card'>${message}</div>`;
+                    : "We couldn't load AI recommendations right now. Showing a starter resource instead — please try again in a moment.";
+                document.getElementById('insightsCards').innerHTML = `<div class='insight-card'>${escapeHtml(message)}</div>`;
                 displayResources();
                 displayFavorites();
             }
@@ -290,7 +327,7 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 card.className = 'insight-card';
                 card.innerHTML = `
                     <div class="insight-icon"><i data-lucide="lightbulb"></i></div>
-                    <div class="insight-text">${insight.text}</div>
+                    <div class="insight-text">${escapeHtml(insight.text)}</div>
                 `;
                 container.appendChild(card);
             });
@@ -309,18 +346,14 @@ Only populate the categories listed above. Leave others as empty arrays [].
                     `${profile.name}, here are resources matched to your goals`;
             }
 
-            // Load goals
             const savedGoals = await db.getItem('lifeAuditGoals');
             goals = savedGoals || [];
 
-            // Load deep profile
             const savedDeep = await db.getItem('lifeAuditDeepProfile');
             deepProfile = savedDeep || {};
 
-            // Trigger the AI fetch 
             await fetchAIRecommendations();
 
-            // Setup filter buttons
             setupFilters();
         }
 
@@ -374,30 +407,30 @@ Only populate the categories listed above. Leave others as empty arrays [].
             const card = document.createElement('div');
             card.className = 'resource-card';
 
-            const tagsHTML = resource.tags.map(tag => 
-                `<span class="tag">${tag}</span>`
+            const tagsHTML = (resource.tags || []).map(tag =>
+                `<span class="tag">${escapeHtml(tag)}</span>`
             ).join('');
 
             card.innerHTML = `
-                <div class="resource-type ${resource.type}">${resource.type}</div>
-                <div class="resource-title">${resource.title}</div>
-                <div class="resource-author">by ${resource.author}</div>
-                <div class="resource-description">${resource.description}</div>
+                <div class="resource-type ${escapeHtml(resource.type)}">${escapeHtml(resource.type)}</div>
+                <div class="resource-title">${escapeHtml(resource.title)}</div>
+                <div class="resource-author">by ${escapeHtml(resource.author)}</div>
+                <div class="resource-description">${escapeHtml(resource.description)}</div>
                 <div class="resource-meta">
-                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${resource.rating}/5</div>
-                    <div class="meta-item">${resource.difficulty}</div>
-                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${resource.timeRequired}</div>
+                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${escapeHtml(resource.rating)}/5</div>
+                    <div class="meta-item">${escapeHtml(resource.difficulty)}</div>
+                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${escapeHtml(resource.timeRequired)}</div>
                 </div>
                 <div class="resource-tags">${tagsHTML}</div>
                 <div class="resource-actions">
-                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? 'Learn More' : 
- resource.type === 'course' ? 'Enroll' :
- resource.type === 'app' ? 'Download' :
- resource.type === 'tool' ? 'Try It' :
- 'Visit'}</button>
-                    <button class="action-btn btn-secondary-action" onclick="removeFavorite('${resource.title}')">Remove</button>
+                    <button type="button" class="action-btn btn-primary-action" data-action="open">${actionLabel(resource.type)}</button>
+                    <button type="button" class="action-btn btn-secondary-action" data-action="remove">Remove</button>
                 </div>
             `;
+
+            // Handlers are attached in JS, so apostrophes in titles (e.g. "Can't Hurt Me") can't break them
+            card.querySelector('[data-action="open"]').addEventListener('click', () => openResource(resource.link, resource.title));
+            card.querySelector('[data-action="remove"]').addEventListener('click', () => { removeFavorite(resource.title); });
 
             return card;
         }
@@ -505,40 +538,41 @@ Only populate the categories listed above. Leave others as empty arrays [].
             const card = document.createElement('div');
             card.className = 'resource-card';
 
-            const tagsHTML = resource.tags.map(tag => 
-                `<span class="tag">${tag}</span>`
+            const tagsHTML = (resource.tags || []).map(tag =>
+                `<span class="tag">${escapeHtml(tag)}</span>`
             ).join('');
 
             card.innerHTML = `
-                <div class="resource-type ${resource.type}">${resource.type}</div>
-                <div class="resource-title">${resource.title}</div>
-                <div class="resource-author">by ${resource.author}</div>
-                <div class="resource-description">${resource.description}</div>
+                <div class="resource-type ${escapeHtml(resource.type)}">${escapeHtml(resource.type)}</div>
+                <div class="resource-title">${escapeHtml(resource.title)}</div>
+                <div class="resource-author">by ${escapeHtml(resource.author)}</div>
+                <div class="resource-description">${escapeHtml(resource.description)}</div>
                 <div class="resource-meta">
-                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${resource.rating}/5</div>
-                    <div class="meta-item">${resource.difficulty}</div>
-                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${resource.timeRequired}</div>
+                    <div class="meta-item"><i data-lucide="star" class="meta-icon"></i> ${escapeHtml(resource.rating)}/5</div>
+                    <div class="meta-item">${escapeHtml(resource.difficulty)}</div>
+                    <div class="meta-item"><i data-lucide="clock" class="meta-icon"></i> ${escapeHtml(resource.timeRequired)}</div>
                 </div>
                 <div class="resource-tags">${tagsHTML}</div>
                 <div class="resource-actions">
-                    <button class="action-btn btn-primary-action" onclick="openResource('${resource.link}', '${resource.title}')">${resource.type === 'book' ? 'Learn More' : 
- resource.type === 'course' ? 'Enroll' :
- resource.type === 'app' ? 'Download' :
- resource.type === 'tool' ? 'Try It' :
- 'Visit'}</button>
-                    <button class="action-btn btn-secondary-action" onclick="saveResource('${resource.title}')">Save</button>
+                    <button type="button" class="action-btn btn-primary-action" data-action="open">${actionLabel(resource.type)}</button>
+                    <button type="button" class="action-btn btn-secondary-action" data-action="save">Save</button>
                 </div>
             `;
+
+            // Handlers are attached in JS, so apostrophes in titles (e.g. "Can't Hurt Me") can't break them
+            card.querySelector('[data-action="open"]').addEventListener('click', () => openResource(resource.link, resource.title));
+            card.querySelector('[data-action="save"]').addEventListener('click', () => { saveResource(resource.title); });
 
             return card;
         }
 
         // FUNCTION 9: Open resource link
         function openResource(link, title) {
-            if (link === '#' || !link) {
+            const url = safeLink(link);
+            if (!url) {
                 alert(`"${title}" - Visit your local bookstore or search online to find this resource!`);
             } else {
-                window.open(link, '_blank');
+                window.open(url, '_blank', 'noopener,noreferrer');
             }
         }
 
@@ -569,7 +603,7 @@ Only populate the categories listed above. Leave others as empty arrays [].
         // Helper: find a resource object by title across all current categories
         function findResourceByTitle(title) {
             for (const category of Object.keys(RESOURCES)) {
-                const match = RESOURCES[category].find(r => r.title === title);
+                const match = (RESOURCES[category] || []).find(r => r.title === title);
                 if (match) return match;
             }
             return null;
