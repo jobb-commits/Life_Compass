@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Compass- Export Report</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- PDF generation library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
     
 </head>
 <body>
@@ -176,6 +174,8 @@
                 const totalGoals = goals.length;
                 const completedGoals = goals.filter(g => g.completed).length;
                 const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+                // Lifetime count includes goals that were completed and later deleted
+                const lifetimeCompleted = Math.max(gamificationData.totalCompleted || 0, completedGoals);
 
                 // COVER PAGE
                 pdf.setFontSize(40);
@@ -268,9 +268,10 @@
                 pdf.text('Total XP: ' + (gamificationData.totalXP || 0), 20, yPos);
                 pdf.text('Achievements Unlocked: ' + gamificationData.unlockedAchievements.length, 20, yPos + 8);
                 pdf.text('Current Streak: ' + (gamificationData.streak || 0) + ' days', 20, yPos + 16);
+                pdf.text('Goals Completed (all-time): ' + lifetimeCompleted, 20, yPos + 24);
 
                 // Category Breakdown
-                yPos += 30;
+                yPos += 38;
                 pdf.setFontSize(16);
                 pdf.setTextColor(10, 10, 10);
                 pdf.text('Goal Distribution by Category', 20, yPos);
@@ -455,6 +456,7 @@
             const totalGoals = goals.length;
             const completedGoals = goals.filter(g => g.completed).length;
             const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+            const lifetimeCompleted = Math.max(gamificationData.totalCompleted || 0, completedGoals);
             
             let text = `LIFE AUDIT REPORT\n`;
             text += `Generated: ${currentDate.toISOString()}\n`;
@@ -471,7 +473,8 @@
             text += `${'-'.repeat(60)}\n`;
             text += `Total XP: ${gamificationData.totalXP || 0}\n`;
             text += `Achievements Unlocked: ${gamificationData.unlockedAchievements.length}\n`;
-            text += `Current Streak: ${gamificationData.streak || 0} days\n\n`;
+            text += `Current Streak: ${gamificationData.streak || 0} days\n`;
+            text += `Goals Completed (all-time): ${lifetimeCompleted}\n\n`;
 
             text += `GOALS SUMMARY\n`;
             text += `${'-'.repeat(60)}\n`;
