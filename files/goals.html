@@ -26,6 +26,10 @@
                 <div class="stat-number" id="pendingGoals">0</div>
                 <div class="stat-label">In Progress</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-number" id="allTimeCompleted">0</div>
+                <div class="stat-label">All-time Completed</div>
+            </div>
         </div>
 
         <div class="add-goal-section">
@@ -63,6 +67,7 @@
             </form>
         </div>
 
+        <!-- Goals Display by Category -->
         <div class="goals-container" id="goalsContainer">
             <!-- JavaScript will do its thing -->
         </div>
@@ -80,13 +85,20 @@
         };
 
         const XP_PER_GOAL = 50;
+
+        // All goals for the signed-in user (persisted in Supabase via db.js)
         let goals = [];
+        // Lifetime number of goals ever completed. Survives deleting goals (stored in lifeAuditGamification).
+        let lifetimeCompleted = 0;
+
         function escapeHtml(str) {
             return String(str ?? '')
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
+        // Parse a stored YYYY-MM-DD deadline as a LOCAL date (new Date('YYYY-MM-DD')
+        // parses as UTC, which is off by a day in timezones such as Nairobi, UTC+3).
         function parseLocalDate(value) {
             if (!value) return null;
             const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
@@ -151,6 +163,12 @@
                 goals = [];
                 showNotification('Could not load your goals. Check your connection and refresh.', 'error');
             }
+            try {
+                const gam = await db.getItem('lifeAuditGamification');
+                lifetimeCompleted = (gam && gam.totalCompleted) || 0;
+            } catch (err) {
+                console.error('Could not load lifetime counter:', err);
+            }
             displayGoals();
             updateStats();
         }
@@ -167,15 +185,20 @@
             }
         }
 
-        async function awardXP(amount, reason) {
+        // Called once per goal, the first time it is completed. Updates XP and the lifetime counter
+        // in a single write so both stay in sync and the counter outlives deleted goals.
+        async function recordCompletion(amount, reason) {
             try {
                 const existing = await db.getItem('lifeAuditGamification');
                 const data = existing || { totalXP: 0, unlockedAchievements: [], streak: 0, lastActiveDate: null };
                 data.totalXP = (data.totalXP || 0) + amount;
+                // max() should also back-fills users who completed goals before this counter existed
+                data.totalCompleted = Math.max((data.totalCompleted || 0) + 1, goals.filter(g => g.completed).length);
                 await db.setItem('lifeAuditGamification', data);
+                lifetimeCompleted = data.totalCompleted;
                 showNotification(`<div style="font-size:22px;">+${amount} XP!</div><div style="font-size:13px;opacity:.9;">${escapeHtml(reason)}</div>`);
             } catch (err) {
-                console.error('Could not award XP:', err);
+                console.error('Could not record completion:', err);
             }
         }
 
@@ -187,6 +210,7 @@
             const title = document.getElementById('goalTitle').value.trim();
             const category = document.getElementById('goalCategory').value;
             const description = document.getElementById('goalDescription').value.trim();
+            // <input type="date"> already yields YYYY-MM-DD (or '' when empty)
             const deadline = document.getElementById('goalDeadline').value || null;
 
             if (!title) { showNotification('Please enter a goal title.', 'error'); return; }
@@ -299,7 +323,6 @@
             return goalDiv;
         }
 
-        // One delegated listener instead of inline onclick/onchange handlers
         document.getElementById('goalsContainer').addEventListener('click', function (e) {
             const actionEl = e.target.closest('[data-action]');
             if (!actionEl) return;
@@ -315,7 +338,6 @@
             }
         });
 
-        // ---------- actions ----------
         async function toggleGoal(goalId) {
             const goal = goals.find(g => g.id === goalId);
             if (!goal) return;
@@ -332,7 +354,7 @@
             if (!ok) {
                 Object.assign(goal, before);
             } else if (shouldAward) {
-                await awardXP(XP_PER_GOAL, `Completed: ${goal.title}`);
+                await recordCompletion(XP_PER_GOAL, `Completed: ${goal.title}`);
             }
             displayGoals();
             updateStats();
@@ -354,11 +376,12 @@
             document.getElementById('totalGoals').textContent = total;
             document.getElementById('completedGoals').textContent = completed;
             document.getElementById('pendingGoals').textContent = total - completed;
+            document.getElementById('allTimeCompleted').textContent = Math.max(lifetimeCompleted, completed);
         }
 
         window.addEventListener('load', async function () {
             const user = await auth.requireAuth();
-            if (!user) return; 
+            if (!user) return; // redirecting to login
             await loadUserProfile();
             await loadGoals();
         });
