@@ -32,7 +32,6 @@
       border-color: var(--black);
     }
 
-    /* Art panel */
     .achievement-art {
       position: relative;
       width: 100%;
@@ -65,6 +64,7 @@
       filter: grayscale(40%) brightness(0.8);
     }
 
+    /* Lock overlay on unearned art */
     .art-lock-overlay {
       position: absolute;
       inset: 0;
@@ -86,6 +86,7 @@
       letter-spacing: 0.05em;
     }
 
+    /* XP badge on earned art */
     .art-earned-badge {
       position: absolute;
       top: 10px;
@@ -220,8 +221,7 @@
         </div>
     </div>
 
-    <script>
-        
+    <script> 
         const ACHIEVEMENTS = [
             {
                 id: 'first_goal',
@@ -351,9 +351,7 @@
             }
         ];
 
-        
         // LEVEL SYSTEM. MAY ADD MORE LEVELS IF TIME ALLOWS
-        
         const LEVELS = [
             { level: 1, title: 'Beginner', xpRequired: 0 },
             { level: 2, title: 'Novice', xpRequired: 1000 },
@@ -372,12 +370,11 @@
             totalXP: 0,
             unlockedAchievements: [],
             streak: 0,
-            lastActiveDate: null
+            lastActiveDate: null,
+            totalCompleted: 0
         };
-
         
-        // FUNCTION 1: Load all data
-        
+        // FUNCTION 1: Load all data        
         async function loadData() {
             await auth.requireAuth();
             const savedProfile = await db.getItem('lifeAuditProfile');
@@ -397,6 +394,7 @@
 
             updateStreak();
 
+            // Calculate stats and check achievements
             const stats = calculateStats();
             checkAchievements(stats);
 
@@ -404,13 +402,12 @@
             displayAchievements(stats);
             updateStats(stats);
         }
-
         
-        // FUNCTION 2: Calculate user statistics
-        
+        // FUNCTION 2: Calculate user statistics        
         function calculateStats() {
             const totalGoals = goals.length;
-            const completedGoals = goals.filter(g => g.completed).length;
+            // Lifetime count: deleting a completed goal must not lower progress
+            const completedGoals = Math.max(goals.filter(g => g.completed).length, gamificationData.totalCompleted || 0);
             
             // Count unique categories used
             const categoriesUsed = new Set(goals.map(g => g.category)).size;
@@ -427,6 +424,8 @@
                 }
             });
 
+            // Build a Set of all unique days that had at least one completion
+            // toDateString() gives "Mon Jan 01 2025" — same day = same string
             const completionDaySet = new Set(
                 goals
                     .filter(g => g.completed && g.completedAt)
@@ -453,7 +452,7 @@
                 if (missedYesterday && workedDayBefore) recoveredNextDay++;
             });
 
-            // "Speed Runner" — most goals completed in a day
+            // "Speed Runner" — most goals completed in a single day
             const goalsInOneDay = completionDaySet.size > 0
                 ? Math.max(...[...completionDaySet].map(day =>
                     goals.filter(g => g.completed && g.completedAt &&
@@ -484,9 +483,7 @@
             };
         }
 
-        
-        // FUNCTION 3: Check and unlock achievements
-        
+        // FUNCTION 3: Check and unlock achievements        
         function checkAchievements(stats) {
             let newXP = 0;
 
@@ -522,13 +519,13 @@
                 }
             });
 
+            // Add new XP
             if (newXP > 0) {
                 gamificationData.totalXP += newXP;
                 saveGamificationData();
             }
         }
 
-        
         // FUNCTION 4: Update streak        
         function updateStreak() {
             const today = new Date().toDateString();
@@ -559,9 +556,7 @@
             saveGamificationData();
         }
 
-        
-        // FUNCTION 5: Calculate current level
-        
+        // FUNCTION 5: Calculate current level        
         function getCurrentLevel() {
             const xp = gamificationData.totalXP;
             
@@ -574,9 +569,7 @@
             return LEVELS[0];
         }
 
-        
-        // FUNCTION 6: Update level display
-        
+        // FUNCTION 6: Update level display        
         function updateLevelDisplay() {
             const currentLevel = getCurrentLevel();
             const nextLevelIndex = LEVELS.findIndex(l => l.level === currentLevel.level) + 1;
@@ -628,7 +621,6 @@
         };
 
         // FUNCTION 7: Display achievements
-        
         function displayAchievements(stats) {
             const grid = document.getElementById('achievementsGrid');
             grid.innerHTML = '';
@@ -671,8 +663,7 @@
             });
         }
 
-        
-        // FUNCTION 8: Update stats display
+        // FUNCTION 8: Update stats display        
         function updateStats(stats) {
             document.getElementById('totalXP').textContent = gamificationData.totalXP;
             document.getElementById('badgesEarned').textContent = 
@@ -688,7 +679,8 @@
             alert(`Achievement Unlocked!\n\n${achievement.name}\n${achievement.description}\n\n+${achievement.xp} XP earned!`);
         }
 
-        // FUNCTION 10: Save gamification data        
+        
+        // FUNCTION 10: Save gamification data
         async function saveGamificationData() {
             await db.setItem('lifeAuditGamification', gamificationData);
         }
