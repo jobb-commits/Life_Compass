@@ -65,7 +65,6 @@
       filter: grayscale(40%) brightness(0.8);
     }
 
-    /* Lock overlay on unearned art */
     .art-lock-overlay {
       position: absolute;
       inset: 0;
@@ -87,7 +86,6 @@
       letter-spacing: 0.05em;
     }
 
-    /* XP badge on earned art */
     .art-earned-badge {
       position: absolute;
       top: 10px;
@@ -224,8 +222,6 @@
 
     <script>
         
-        // list of attainable achievements
-        
         const ACHIEVEMENTS = [
             {
                 id: 'first_goal',
@@ -329,7 +325,7 @@
                 id: 'comeback',
                 name: 'Comeback King',
                 description: 'Restart your streak after missing a day',
-                requirement: (stats) => stats.recoveredNextDay >= 1,
+                requirement: (stats) => stats.brokenStreaks >= 1,
                 xp: 300
             },
             {
@@ -391,11 +387,9 @@
                     `${profile.name}'s Achievements`;
             }
 
-            // Load goals
             const savedGoals = await db.getItem('lifeAuditGoals');
             goals = savedGoals || [];
 
-            // Load gamification data
             const savedGamification = await db.getItem('lifeAuditGamification');
             if (savedGamification) {
                 gamificationData = savedGamification;
@@ -403,11 +397,9 @@
 
             updateStreak();
 
-            // Calculate stats, check achievements
             const stats = calculateStats();
             checkAchievements(stats);
 
-            // Update display
             updateLevelDisplay();
             displayAchievements(stats);
             updateStats(stats);
@@ -435,8 +427,6 @@
                 }
             });
 
-            // Build a Set of all unique days that had at least one completion
-            // toDateString() gives "Mon Jan 01 2025" — same day = same string
             const completionDaySet = new Set(
                 goals
                     .filter(g => g.completed && g.completedAt)
@@ -463,7 +453,7 @@
                 if (missedYesterday && workedDayBefore) recoveredNextDay++;
             });
 
-            // "Speed Runner" — most goals completed in a single day
+            // "Speed Runner" — most goals completed in a day
             const goalsInOneDay = completionDaySet.size > 0
                 ? Math.max(...[...completionDaySet].map(day =>
                     goals.filter(g => g.completed && g.completedAt &&
@@ -532,7 +522,6 @@
                 }
             });
 
-            // Add new XP
             if (newXP > 0) {
                 gamificationData.totalXP += newXP;
                 saveGamificationData();
@@ -540,8 +529,7 @@
         }
 
         
-        // FUNCTION 4: Update streak
-        
+        // FUNCTION 4: Update streak        
         function updateStreak() {
             const today = new Date().toDateString();
             const lastActive = gamificationData.lastActiveDate;
@@ -685,7 +673,6 @@
 
         
         // FUNCTION 8: Update stats display
-        
         function updateStats(stats) {
             document.getElementById('totalXP').textContent = gamificationData.totalXP;
             document.getElementById('badgesEarned').textContent = 
@@ -696,15 +683,12 @@
 
         
         // FUNCTION 9: Display achievement notification
-        
         function showAchievementNotification(achievement) {
             // Simple alert for now (will try to make it fancier if I get a better idea!)
             alert(`Achievement Unlocked!\n\n${achievement.name}\n${achievement.description}\n\n+${achievement.xp} XP earned!`);
         }
 
-        
-        // FUNCTION 10: Save gamification data
-        
+        // FUNCTION 10: Save gamification data        
         async function saveGamificationData() {
             await db.setItem('lifeAuditGamification', gamificationData);
         }
