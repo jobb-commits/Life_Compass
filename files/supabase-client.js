@@ -6,7 +6,7 @@ function loadSupabaseSdk(callback) {
     return;
   }
   const script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js';
   script.onload = callback;
   script.onerror = () => console.error('Failed to load Supabase SDK. Check your network/CSP.');
   document.head.appendChild(script);
