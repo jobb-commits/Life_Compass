@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Compass - Calendar View</title>
+    <title>Life Compass - Calendar</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -55,7 +55,21 @@
             goals = goals.filter(g => g.deadline);
         }
 
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // 'YYYY-MM-DD' -> local midnight (new Date('YYYY-MM-DD') is UTC midnight)
+        function parseLocalDate(value) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '');
+            return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
+        }
+
         function changeMonth(delta) {
+            // Pin to the 1st first: setMonth on the 29th-31st can overflow and skip a month
+            currentDate.setDate(1);
             currentDate.setMonth(currentDate.getMonth() + delta);
             renderCalendar();
         }
@@ -114,7 +128,8 @@
             dayDiv.className = `calendar-day ${otherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`;
             
             const dayDate = new Date(year, month, day);
-            const dateStr = dayDate.toISOString().split('T')[0];
+            // Build the key from local parts; toISOString() converts to UTC and is a day early in UTC+3
+            const dateStr = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, '0')}-${String(dayDate.getDate()).padStart(2, '0')}`;
             
             // Find goals for this date
             const dayGoals = goals.filter(g => {
@@ -125,8 +140,9 @@
             
             // Check if any goals are overdue
             const hasOverdue = dayGoals.some(g => {
-                const deadline = new Date(g.deadline);
-                return !g.completed && deadline < new Date();
+                const deadline = parseLocalDate(g.deadline);
+                const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+                return !g.completed && deadline < startOfToday;
             });
             
             dayDiv.innerHTML = `
@@ -134,7 +150,7 @@
                 <div class="day-goals">
                     ${dayGoals.map(goal => `
                         <div class="calendar-goal ${goal.category} ${hasOverdue && !goal.completed ? 'overdue' : ''}" 
-                             title="${goal.title}">${goal.completed ? ' ' : ''}${goal.title}</div>
+                             title="${escapeHtml(goal.title)}">${goal.completed ? '✓ ' : ''}${escapeHtml(goal.title)}</div>
                     `).join('')}
                 </div>
             `;
@@ -161,8 +177,9 @@
             }
             
             sortedGoals.forEach(goal => {
-                const deadline = new Date(goal.deadline);
-                const daysUntil = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+                const deadline = parseLocalDate(goal.deadline);
+                const daysUntil = Math.round((deadline - today) / 86400000);
+                const dayWord = n => (n === 1 ? 'day' : 'days');
                 
                 let statusClass = '';
                 let statusText = '';
@@ -170,7 +187,7 @@
                 
                 if (daysUntil < 0) {
                     statusClass = 'status-overdue';
-                    statusText = `Overdue by ${Math.abs(daysUntil)} days`;
+                    statusText = `Overdue by ${Math.abs(daysUntil)} ${dayWord(Math.abs(daysUntil))}`;
                     itemClass = 'overdue';
                 } else if (daysUntil === 0) {
                     statusClass = 'status-today';
@@ -178,7 +195,7 @@
                     itemClass = 'due-soon';
                 } else if (daysUntil <= 7) {
                     statusClass = 'status-soon';
-                    statusText = `Due in ${daysUntil} days`;
+                    statusText = `Due in ${daysUntil} ${dayWord(daysUntil)}`;
                     itemClass = 'due-soon';
                 } else {
                     statusClass = 'status-soon';
@@ -189,7 +206,7 @@
                 item.className = `upcoming-goal ${itemClass}`;
                 item.innerHTML = `
                     <div class="upcoming-goal-content">
-                        <div class="upcoming-goal-title">${goal.title}</div>
+                        <div class="upcoming-goal-title">${escapeHtml(goal.title)}</div>
                         <div class="upcoming-goal-meta">${getCategoryName(goal.category)}</div>
                     </div>
                     <div class="upcoming-goal-status ${statusClass}">${statusText}</div>
