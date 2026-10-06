@@ -81,8 +81,6 @@
     </div>
 
     <script>
-        
-        // Category definitions 
         const CATEGORIES = {
             career: { name: 'Career/Education', color: 'career' },    
             health: { name: 'Health & Fitness', color: 'health' },     
@@ -92,6 +90,12 @@
         };
 
         let goals = [];
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
 
         // FUNCTION 1: Load data and initialize dashboard
         async function loadData() {
@@ -117,7 +121,6 @@
                     'Complete your profile to personalize this dashboard';
             }
 
-            // Load goals
             const savedGoals = await db.getItem('lifeAuditGoals');
             goals = savedGoals || [];
 
@@ -128,9 +131,7 @@
             updateRecentActivity();
         }
 
-    
-        // FUNCTION 2: Update circular progress gauge
-        
+        // FUNCTION 2: Update circular progress gauge        
         function updateOverallProgress() {
             const total = goals.length;
             const completed = goals.filter(g => g.completed).length;
@@ -139,7 +140,6 @@
             // Update percentage text
             document.getElementById('progressPercentage').textContent = percentage + '%';
 
-            // Update stats
             document.getElementById('totalGoalsStat').textContent = total;
             document.getElementById('completedStat').textContent = completed;
             document.getElementById('inProgressStat').textContent = total - completed;
@@ -158,10 +158,8 @@
                 circle.style.strokeDashoffset = offset;
             }, ANIMATION_DELAY);
         }
-
         
-        // FUNCTION 3: Update progress bars
-        
+        // FUNCTION 3: Update progress bars        
         function updateCategoryProgress() {
             const container = document.getElementById('categoryProgressList');
             container.innerHTML = '';
@@ -195,9 +193,7 @@
             });
         }
 
-        
-        // FUNCTION 4: Update comparison bar chart
-        
+        // FUNCTION 4: Update comparison bar chart        
         function updateComparisonChart() {
             const container = document.getElementById('barChart');
             container.innerHTML = '';
@@ -251,7 +247,7 @@
             const recentGoals = sortedGoals.slice(0, RECENT_ACTIVITY_LIMIT);
 
             recentGoals.forEach(goal => {
-                const category = CATEGORIES[goal.category];
+                const category = CATEGORIES[goal.category] || { name: 'Other', color: 'career' };
                 const date = new Date(goal.createdAt);
                 const timeAgo = getTimeAgo(date);
                 
@@ -269,7 +265,7 @@
 	                item.innerHTML = `
 	                    <div class="activity-icon" title="${goal.completed ? 'Completed' : 'In Progress'}">${statusIcon}</div>
 	                    <div class="activity-content">
-	                        <div class="activity-text">${goal.title}</div>
+	                        <div class="activity-text">${escapeHtml(goal.title)}</div>
 	                        <div class="activity-time">${statusText} • ${category.name}</div>
 	                    </div>
 	                `;
