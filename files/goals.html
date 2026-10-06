@@ -63,393 +63,304 @@
             </form>
         </div>
 
-        <!-- Goals Display by Category -->
         <div class="goals-container" id="goalsContainer">
             <!-- JavaScript will do its thing -->
         </div>
     </div>
 
+    <script src="supabase-client.js"></script>
+    <script src="db.js"></script>
     <script>
-        // Set up categories, load data
         const CATEGORIES = {
-            career: {
-                name: 'Career/Education',
-                color: 'career'
-            },
-            health: {
-                name: 'Health & Fitness',
-                color: 'health'
-            },
-            finance: {
-                name: 'Finance',
-                color: 'finance'
-            },
-            relationships: {
-                name: 'Relationships/Social',
-                color: 'relationships'
-            },
-            hobbies: {
-                name: 'Skills/Hobbies',
-                color: 'hobbies'
-            }
+            career:        { name: 'Career/Education',     color: 'career' },
+            health:        { name: 'Health & Fitness',     color: 'health' },
+            finance:       { name: 'Finance',              color: 'finance' },
+            relationships: { name: 'Relationships/Social', color: 'relationships' },
+            hobbies:       { name: 'Skills/Hobbies',       color: 'hobbies' }
         };
 
-        // Store all goals array
+        const XP_PER_GOAL = 50;
         let goals = [];
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
 
-        // Found section of code that allows date to be formatted in the form DD/MM/YYYY
-        function formatDateDDMMYYYY(dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
+        function parseLocalDate(value) {
+            if (!value) return null;
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+            if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+            const d = new Date(value);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function formatDateDDMMYYYY(value) {
+            const date = /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? parseLocalDate(value) : new Date(value);
+            if (!date || isNaN(date.getTime())) return '';
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
+            return `${day}/${month}/${date.getFullYear()}`;
         }
 
-        // Achievement definitions, for XP calculation)
-        const ACHIEVEMENTS = [
-            { id: 'first_goal', requirement: (stats) => stats.totalGoals >= 1, xp: 50 },
-            { id: 'goal_getter', requirement: (stats) => stats.totalGoals >= 5, xp: 100 },
-            { id: 'ambitious', requirement: (stats) => stats.totalGoals >= 10, xp: 200 },
-            { id: 'first_win', requirement: (stats) => stats.completedGoals >= 1, xp: 100 },
-            { id: 'on_fire', requirement: (stats) => stats.completedGoals >= 5, xp: 250 },
-            { id: 'unstoppable', requirement: (stats) => stats.completedGoals >= 10, xp: 500 },
-            { id: 'well_rounded', requirement: (stats) => stats.categoriesUsed >= 5, xp: 300 },
-            { id: 'perfectionist', requirement: (stats) => stats.categoryCompleted, xp: 400 }
-        ];
+        function showNotification(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.setAttribute('role', 'status');
+            toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 10000;
+                background: ${type === 'error' ? '#b02a2a' : 'var(--black)'}; color: #fff;
+                padding: 16px 24px; border-radius: 10px; font-weight: 600; font-size: 14px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideIn 0.4s;
+                max-width: min(360px, calc(100vw - 40px));
+            `;
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.4s forwards';
+                setTimeout(() => toast.remove(), 400);
+            }, type === 'error' ? 5000 : 2800);
+        }
 
-        let gamificationData = {
-            totalXP: 0,
-            unlockedAchievements: [],
-            streak: 0,
-            lastActiveDate: null
-        };
+        const animStyle = document.createElement('style');
+        animStyle.textContent = `
+            @keyframes slideIn  { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
+        `;
+        document.head.appendChild(animStyle);
 
-        // FUNCTION 1: Load user profile, should also show dynamic greeting from provided set
-        function loadUserProfile() {
-            const savedProfile = localStorage.getItem('lifeAuditProfile');
-            
-            if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
-                document.getElementById('userGreeting').textContent = 
-                    `Welcome, ${profile.name}! Let's organize your goals.`;
-            } else {
-                document.getElementById('userGreeting').textContent = 
-                    'Start by creating your first goal below!';
+        async function loadUserProfile() {
+            const greeting = document.getElementById('userGreeting');
+            try {
+                const profile = await db.getItem('lifeAuditProfile');
+                greeting.textContent = profile && profile.name
+                    ? `Welcome, ${profile.name}! Let's organize your goals.`
+                    : 'Start by creating your first goal below!';
+            } catch (err) {
+                console.error('Could not load profile:', err);
+                greeting.textContent = 'Start by creating your first goal below!';
             }
         }
 
-        // FUNCTION 2: Load saved goals from localStorage
-        function loadGoals() {
-            const savedGoals = localStorage.getItem('lifeAuditGoals');
-            
-            if (savedGoals) {
-                goals = JSON.parse(savedGoals);
-            } else {
+        async function loadGoals() {
+            try {
+                const saved = await db.getItem('lifeAuditGoals');
+                goals = Array.isArray(saved) ? saved : [];
+            } catch (err) {
+                console.error('Could not load goals:', err);
                 goals = [];
+                showNotification('Could not load your goals. Check your connection and refresh.', 'error');
             }
-            
             displayGoals();
             updateStats();
         }
 
-        // FUNCTION 3: Save goals to localStorage
-        function saveGoals() {
-            localStorage.setItem('lifeAuditGoals', JSON.stringify(goals));
+        // Returns true on success so callers can roll back on failure.
+        async function saveGoals() {
+            try {
+                await db.setItem('lifeAuditGoals', goals);
+                return true;
+            } catch (err) {
+                console.error('Could not save goals:', err);
+                showNotification('Could not save — your change was not stored. Please try again.', 'error');
+                return false;
+            }
         }
 
-        // FUNCTION 4: Add a new goal
-        document.getElementById('goalForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Get form values
-            const title = document.getElementById('goalTitle').value;
-            const category = document.getElementById('goalCategory').value;
-            const description = document.getElementById('goalDescription').value;
-            const deadlineInput = document.getElementById('goalDeadline').value;
-            
-            // Convert DD/MM/YYYY to ISO format (YYYY-MM-DD)
-            let deadline = null;
-            if (deadlineInput) {
-                const parts = deadlineInput.split('/');
-                if (parts.length === 3) {
-                    const day = parts[0];
-                    const month = parts[1];
-                    const year = parts[2];
-                    deadline = `${year}-${month}-${day}`;
-                    
-                    // Validate the date
-                    const dateObj = new Date(deadline);
-                    if (isNaN(dateObj.getTime())) {
-                        alert('Invalid date format! Please use DD/MM/YYYY');
-                        return;
-                    }
-                }
+        async function awardXP(amount, reason) {
+            try {
+                const existing = await db.getItem('lifeAuditGamification');
+                const data = existing || { totalXP: 0, unlockedAchievements: [], streak: 0, lastActiveDate: null };
+                data.totalXP = (data.totalXP || 0) + amount;
+                await db.setItem('lifeAuditGamification', data);
+                showNotification(`<div style="font-size:22px;">+${amount} XP!</div><div style="font-size:13px;opacity:.9;">${escapeHtml(reason)}</div>`);
+            } catch (err) {
+                console.error('Could not award XP:', err);
             }
-            
-            // Create new goal object
+        }
+
+        document.getElementById('goalForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            const title = document.getElementById('goalTitle').value.trim();
+            const category = document.getElementById('goalCategory').value;
+            const description = document.getElementById('goalDescription').value.trim();
+            const deadline = document.getElementById('goalDeadline').value || null;
+
+            if (!title) { showNotification('Please enter a goal title.', 'error'); return; }
+            if (!CATEGORIES[category]) { showNotification('Please choose a category.', 'error'); return; }
+
             const newGoal = {
-                id: Date.now(), // Will create a timestamp based unique ID probably. I hope.
-                title: title,
-                category: category,
-                description: description,
-                deadline: deadline,
+                id: Date.now(),
+                title,
+                category,
+                description,
+                deadline,
                 completed: false,
                 createdAt: new Date().toISOString(),
                 completedAt: null
             };
-            
-            // Add to goals array
+
+            submitBtn.disabled = true;
             goals.push(newGoal);
-            
-            // Save and refresh display
-            saveGoals();
+            const ok = await saveGoals();
+            submitBtn.disabled = false;
+
+            if (!ok) { goals.pop(); return; }
+
             displayGoals();
             updateStats();
-            
-            // Clear the form
-            document.getElementById('goalForm').reset();
-            
-            console.log('Goal added:', newGoal);
+            form.reset();
+            showNotification('Goal added');
         });
 
-        // FUNCTION 5: Display all goals organized by category
         function displayGoals() {
             const container = document.getElementById('goalsContainer');
-            container.innerHTML = ''; // Clear existing content
-            
-            // Loop through each category
-            Object.keys(CATEGORIES).forEach(categoryKey => {
-                const category = CATEGORIES[categoryKey];
-                
-                // Filter goals for this category
-                const categoryGoals = goals.filter(goal => goal.category === categoryKey);
-                
-                // Create category section
+            container.innerHTML = '';
+
+            const byCategory = {};
+            goals.forEach(g => { (byCategory[g.category] = byCategory[g.category] || []).push(g); });
+
+            Object.keys(CATEGORIES).forEach(key => {
+                const category = CATEGORIES[key];
+                const categoryGoals = byCategory[key] || [];
+                const completedCount = categoryGoals.filter(g => g.completed).length;
+
                 const section = document.createElement('div');
                 section.className = 'category-section';
-                
-                // Count completed vs total
-                const completedCount = categoryGoals.filter(g => g.completed).length;
-                const totalCount = categoryGoals.length;
-                
                 section.innerHTML = `
                     <div class="category-header">
                         <div class="category-icon"></div>
                         <div class="category-title">
                             <h3>${category.name}</h3>
-                            <div class="category-count">${completedCount} of ${totalCount} completed</div>
+                            <div class="category-count">${completedCount} of ${categoryGoals.length} completed</div>
                         </div>
-                        <span class="category-badge category-${category.color}">${totalCount}</span>
+                        <span class="category-badge category-${category.color}">${categoryGoals.length}</span>
                     </div>
-                    <div class="goals-list" id="goals-${categoryKey}"></div>
+                    <div class="goals-list"></div>
                 `;
-                
-                container.appendChild(section);
-                
-                // Add goals to this category
-                const goalsList = document.getElementById(`goals-${categoryKey}`);
-                
+
+                const list = section.querySelector('.goals-list');
                 if (categoryGoals.length === 0) {
-                    goalsList.innerHTML = `
-                        <div class="empty-state">
-                            <div>No goals in this category yet</div>
-                        </div>
-                    `;
+                    list.innerHTML = '<div class="empty-state"><div>No goals in this category yet</div></div>';
                 } else {
-                    categoryGoals.forEach(goal => {
-                        goalsList.appendChild(createGoalElement(goal));
-                    });
+                    categoryGoals.forEach(goal => list.appendChild(createGoalElement(goal)));
                 }
+                container.appendChild(section);
             });
         }
 
-        // FUNCTION 6: Create a single goal element
         function createGoalElement(goal) {
             const goalDiv = document.createElement('div');
             goalDiv.className = `goal-item ${goal.completed ? 'completed' : ''}`;
-            
-            // Format the creation date as DD/MM/YYYY
-            const dateStr = formatDateDDMMYYYY(goal.createdAt);
-            
-            // Check deadline status
+            goalDiv.dataset.id = goal.id;
+
             let deadlineHTML = '';
-            let deadlineClass = '';
-            if (goal.deadline) {
-                const deadline = new Date(goal.deadline);
-                const today = new Date();
-                const daysUntil = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
-                
-                if (!goal.completed) {
-                    if (daysUntil < 0) {
-                        deadlineClass = 'overdue';
-                        deadlineHTML = `<span style="color: #ef4444; font-weight: 600;">Overdue by ${Math.abs(daysUntil)} days</span>`;
-                    } else if (daysUntil === 0) {
-                        deadlineClass = 'due-today';
-                        deadlineHTML = `<span style="color: #f59e0b; font-weight: 600;">Due TODAY!</span>`;
-                    } else if (daysUntil <= 7) {
-                        deadlineClass = 'due-soon';
-                        deadlineHTML = `<span style="color: #f59e0b; font-weight: 600;">Due in ${daysUntil} days</span>`;
-                    } else {
-                        deadlineHTML = `<span style="color: #666;">Due ${formatDateDDMMYYYY(goal.deadline)}</span>`;
-                    }
+            const deadline = parseLocalDate(goal.deadline);
+            if (deadline) {
+                if (goal.completed) {
+                    deadlineHTML = `<span style="color:#666;">Completed ${goal.completedAt ? formatDateDDMMYYYY(goal.completedAt) : ''}</span>`;
                 } else {
-                    deadlineHTML = `<span style="color: #666;">Completed ${goal.completedAt ? formatDateDDMMYYYY(goal.completedAt) : ''}</span>`;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const daysUntil = Math.round((deadline - today) / 86400000);
+                    const plural = n => (n === 1 ? 'day' : 'days');
+
+                    if (daysUntil < 0) {
+                        deadlineHTML = `<span style="color:#ef4444;font-weight:600;">Overdue by ${-daysUntil} ${plural(-daysUntil)}</span>`;
+                    } else if (daysUntil === 0) {
+                        deadlineHTML = '<span style="color:#f59e0b;font-weight:600;">Due TODAY</span>';
+                    } else if (daysUntil <= 7) {
+                        deadlineHTML = `<span style="color:#f59e0b;font-weight:600;">Due in ${daysUntil} ${plural(daysUntil)}</span>`;
+                    } else {
+                        deadlineHTML = `<span style="color:#666;">Due ${formatDateDDMMYYYY(goal.deadline)}</span>`;
+                    }
                 }
             }
-            
+
             goalDiv.innerHTML = `
-                <input 
-                    type="checkbox" 
-                    class="goal-checkbox" 
-                    ${goal.completed ? 'checked' : ''}
-                    onchange="toggleGoal(${goal.id})"
-                >
+                <input type="checkbox" class="goal-checkbox" data-action="toggle"
+                       aria-label="Mark &quot;${escapeHtml(goal.title)}&quot; as complete" ${goal.completed ? 'checked' : ''}>
                 <div class="goal-content">
-                    <div class="goal-text">${goal.title}</div>
-                    ${goal.description ? `<div class="goal-description">${goal.description}</div>` : ''}
+                    <div class="goal-text">${escapeHtml(goal.title)}</div>
+                    ${goal.description ? `<div class="goal-description">${escapeHtml(goal.description)}</div>` : ''}
                     <div class="goal-meta">
-                        <span class="goal-date">Added ${dateStr}</span>
+                        <span class="goal-date">Added ${formatDateDDMMYYYY(goal.createdAt)}</span>
                         ${deadlineHTML ? `<span class="goal-deadline">${deadlineHTML}</span>` : ''}
                     </div>
                 </div>
                 <div class="goal-actions">
-                    <button class="icon-btn" onclick="deleteGoal(${goal.id})" title="Delete">🗑️</button>
+                    <button type="button" class="icon-btn" data-action="delete"
+                            aria-label="Delete goal &quot;${escapeHtml(goal.title)}&quot;" title="Delete">Delete</button>
                 </div>
             `;
-            
             return goalDiv;
         }
 
-        // FUNCTION 7: Toggle goal completion 
-        function toggleGoal(goalId) {
+        // One delegated listener instead of inline onclick/onchange handlers
+        document.getElementById('goalsContainer').addEventListener('click', function (e) {
+            const actionEl = e.target.closest('[data-action]');
+            if (!actionEl) return;
+            const item = actionEl.closest('.goal-item');
+            if (!item) return;
+            const id = Number(item.dataset.id);
+            if (actionEl.dataset.action === 'delete') deleteGoal(id);
+        });
+        document.getElementById('goalsContainer').addEventListener('change', function (e) {
+            if (e.target.matches('[data-action="toggle"]')) {
+                const item = e.target.closest('.goal-item');
+                toggleGoal(Number(item.dataset.id));
+            }
+        });
+
+        // ---------- actions ----------
+        async function toggleGoal(goalId) {
             const goal = goals.find(g => g.id === goalId);
-            if (goal) {
-                const wasCompleted = goal.completed;
-                goal.completed = !goal.completed;
-                
-                // Award XP upon completion of a goal
-                if (goal.completed && !wasCompleted) {
-                    goal.completedAt = new Date().toISOString();
-                    awardXP(50, `Completed: ${goal.title}`);
-                } else if (!goal.completed && wasCompleted) {
-                    // Remove XP if unchecking a completed goal
-                    goal.completedAt = null;
-                }
-                
-                saveGoals();
-                displayGoals();
-                updateStats();
+            if (!goal) return;
+
+            const before = { completed: goal.completed, completedAt: goal.completedAt, xpAwarded: goal.xpAwarded };
+            goal.completed = !goal.completed;
+            goal.completedAt = goal.completed ? new Date().toISOString() : null;
+
+            // XP is awarded once per goal: un-ticking and re-ticking can't be farmed for points
+            const shouldAward = goal.completed && !goal.xpAwarded;
+            if (shouldAward) goal.xpAwarded = true;
+
+            const ok = await saveGoals();
+            if (!ok) {
+                Object.assign(goal, before);
+            } else if (shouldAward) {
+                await awardXP(XP_PER_GOAL, `Completed: ${goal.title}`);
             }
+            displayGoals();
+            updateStats();
         }
 
-        // FUNCTIOn to Award XP and update gamification
-        function awardXP(amount, reason) {
-            // Load gamification data
-            let savedGamification = localStorage.getItem('lifeAuditGamification');
-            let data = savedGamification ? JSON.parse(savedGamification) : {
-                totalXP: 0,
-                unlockedAchievements: [],
-                streak: 0,
-                lastActiveDate: null
-            };
-            
-            // Add XP
-            data.totalXP += amount;
-            
-            // Save
-            localStorage.setItem('lifeAuditGamification', JSON.stringify(data));
-            
-            // Show notification
-            showXPNotification(amount, reason);
+        async function deleteGoal(goalId) {
+            if (!confirm('Are you sure you want to delete this goal?')) return;
+            const previous = goals;
+            goals = goals.filter(g => g.id !== goalId);
+            const ok = await saveGoals();
+            if (!ok) goals = previous;
+            displayGoals();
+            updateStats();
         }
 
-        // FUNCTION TO Show XP notification
-        function showXPNotification(amount, reason) {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: var(--black);
-                color: white;
-                padding: 20px 30px;
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                z-index: 10000;
-                animation: slideIn 0.5s;
-                font-weight: 600;
-            `;
-            notification.innerHTML = `
-                <div style="font-size: 24px; margin-bottom: 5px;">+${amount} XP!</div>
-                <div style="font-size: 14px; opacity: 0.9;">${reason}</div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.5s';
-                setTimeout(() => notification.remove(), 500);
-            }, 3000);
-        }
-
-        // Add CSS animations
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(400px); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(400px); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
-
-        // FUNCTION 8: Goal deletion function
-        function deleteGoal(goalId) {
-            if (confirm('Are you sure you want to delete this goal?')) {
-                goals = goals.filter(g => g.id !== goalId);
-                saveGoals();
-                displayGoals();
-                updateStats();
-            }
-        }
-
-        // FUNCTION 9: Update statistics
         function updateStats() {
             const total = goals.length;
             const completed = goals.filter(g => g.completed).length;
-            const pending = total - completed;
-            
             document.getElementById('totalGoals').textContent = total;
             document.getElementById('completedGoals').textContent = completed;
-            document.getElementById('pendingGoals').textContent = pending;
+            document.getElementById('pendingGoals').textContent = total - completed;
         }
 
-        // Run when page loads
-        window.addEventListener('load', function() {
-            loadUserProfile();
-            loadGoals();
-            
-            // Add date input auto-formatting (DD/MM/YYYY)
-            const deadlineInput = document.getElementById('goalDeadline');
-            deadlineInput.addEventListener('input', function(e) {
-                let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                
-                if (value.length >= 2) {
-                    value = value.substring(0, 2) + '/' + value.substring(2);
-                }
-                if (value.length >= 5) {
-                    value = value.substring(0, 5) + '/' + value.substring(5, 9);
-                }
-                
-                e.target.value = value;
-            });
+        window.addEventListener('load', async function () {
+            const user = await auth.requireAuth();
+            if (!user) return; 
+            await loadUserProfile();
+            await loadGoals();
         });
     </script>
     <script src="nav.js"></script>
