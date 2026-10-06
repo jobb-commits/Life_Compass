@@ -54,6 +54,17 @@
         
         const LIFE_STAGES = [
             {
+                name: 'Foundation Years',
+                ageRange: [13, 17],
+                description: 'A time to build habits, discover interests, and lay the groundwork for the choices ahead. Focus on learning, curiosity, and healthy routines.',
+                recommendations: [
+                    { category: 'EDUCATION', text: 'Build strong study habits and explore subjects that spark your curiosity', tip: 'Consistency beats cramming' },
+                    { category: 'CAREER', text: 'Explore possible careers through clubs, volunteering, and conversations with people in the field', tip: 'Ask people about their day-to-day work' },
+                    { category: 'HEALTH', text: 'Protect your sleep and stay active', tip: 'Habits formed now are easier to keep later' },
+                    { category: 'FINANCE', text: 'Learn the basics of saving and budgeting early', tip: 'Even small amounts saved regularly add up' }
+                ]
+            },
+            {
                 name: 'Young Adult',
                 ageRange: [18, 24],
                 description: 'A time for exploration, learning, and building foundations. Focus on education, skill development, and discovering your passions.',
@@ -141,10 +152,8 @@
 
         let userAge = 0;
         let currentStage = null;
-
         
-        // FUNCTION 1: Load user data
-        
+        // FUNCTION 1: Load user data        
         async function loadData() {
             await auth.requireAuth();
             const savedProfile = await db.getItem('lifeAuditProfile');
@@ -171,9 +180,7 @@
             }
         }
 
-        
         // FUNCTION 2: Update stats
-        
         function updateStats() {
             document.getElementById('currentAge').textContent = userAge;
             
@@ -190,10 +197,8 @@
                 document.getElementById('nextMilestone').textContent = '--';
             }
         }
-
         
-        // FUNCTION 3: Display current life stage
-        
+        // FUNCTION 3: Display current life stage        
         function displayCurrentStage() {
             if (!currentStage) return;
 
@@ -203,9 +208,7 @@
                 `Ages ${currentStage.ageRange[0]} - ${currentStage.ageRange[1]}`;
         }
 
-        
         // FUNCTION 4: Display recommendations
-        
         function displayRecommendations() {
             if (!currentStage) return;
 
@@ -224,9 +227,7 @@
             });
         }
 
-        
-        // FUNCTION 5: Display timeline
-        
+        // FUNCTION 5: Display timeline        
         function displayTimeline() {
                         const timeline = document.getElementById('timeline');
             timeline.innerHTML = '';
