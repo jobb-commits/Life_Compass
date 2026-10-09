@@ -235,8 +235,8 @@ ${deepContext.additionalContext ? `10. EXTRA CONTEXT: ${deepContext.additionalCo
 OUTPUT RULES 
 - Generate exactly 3 sharp, specific insights. Each under 30 words. Reference their actual situation, not generic advice.
 - Generate resources ONLY for these categories (the ones they have goals in): ${categoriesToCover.join(', ')}
-- For each category, provide 1-2 highly relevant resources. Quality over quantity.
-- Each resource description must be specific to this person, not generic copy.
+- For each category, provide 1-4 highly relevant resources. Quality over quantity.
+- Each resource description must be specific to this person and not a generic copy.
 - Keep each description under 35 words.
 
 You MUST return ONLY valid JSON in this exact structure, no other text:
@@ -257,7 +257,7 @@ Only populate the categories listed above. Leave others as empty arrays [].
             `.trim();
 
             try {
-                // Send the Supabase session token so the backend can verify the caller is signed in
+                // Send the Supabase session token so backend can verify the caller is signed in
                 const client = await window.supabaseReady;
                 const { data: sessionData } = await client.auth.getSession();
                 const token = sessionData && sessionData.session ? sessionData.session.access_token : '';
@@ -318,7 +318,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
             }
         }
 
-        // Helper to inject the new AI insight cards into the DOM
         function renderAIInsights(insights) {
             const container = document.getElementById('insightsCards');
             container.innerHTML = '';
@@ -369,12 +368,9 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 return;
             }
 
-            // Show favorites section
             favoritesSection.style.display = 'block';
             favoritesGrid.innerHTML = '';
 
-            // Render directly from the saved resource objects 
-            // Persist across refreshes and AI re-fetches, independent of what's currently in RESOURCES
             savedArray.forEach(resource => {
                 const card = createFavoriteCard(resource);
                 favoritesGrid.appendChild(card);
@@ -383,9 +379,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        // Helper: read savedResources from localStorage, migrating the old
-        // "array of title strings" format to "array of full resource objects"
-        // if needed, so favorites saved before this fix aren't lost
         async function getSavedResources() {
             const saved = await db.getItem('savedResources');
             let savedArray = saved || [];
@@ -394,7 +387,7 @@ Only populate the categories listed above. Leave others as empty arrays [].
             if (isOldFormat) {
                 const migrated = savedArray
                     .map(title => findResourceByTitle(title))
-                    .filter(Boolean); // drop titles that no longer match anything
+                    .filter(Boolean); 
                 await db.setItem('savedResources', migrated);
                 return migrated;
             }
@@ -428,7 +421,7 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 </div>
             `;
 
-            // Handlers are attached in JS, so apostrophes in titles (e.g. "Can't Hurt Me") can't break them
+            // Handlers are attached in JS, so apostrophes in titles are no longer catastrophic as they once were
             card.querySelector('[data-action="open"]').addEventListener('click', () => openResource(resource.link, resource.title));
             card.querySelector('[data-action="remove"]').addEventListener('click', () => { removeFavorite(resource.title); });
 
@@ -559,7 +552,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
                 </div>
             `;
 
-            // Handlers are attached in JS, so apostrophes in titles (e.g. "Can't Hurt Me") can't break them
             card.querySelector('[data-action="open"]').addEventListener('click', () => openResource(resource.link, resource.title));
             card.querySelector('[data-action="save"]').addEventListener('click', () => { saveResource(resource.title); });
 
@@ -578,8 +570,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
 
         // FUNCTION 10: Save resource to favorites
         async function saveResource(title) {
-            // Find the full resource object so it survives a refresh
-            // even if the AI returns a different RESOURCES set next time
             const resource = findResourceByTitle(title);
             if (!resource) return;
 
@@ -590,8 +580,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
             if (!alreadySaved) {
                 savedArray.push(resource);
                 await db.setItem('savedResources', savedArray);
-
-                // Refresh favorites display
                 await displayFavorites();
 
                 alert(`"${title}" saved to your favorites!`);
@@ -609,7 +597,6 @@ Only populate the categories listed above. Leave others as empty arrays [].
             return null;
         }
 
-        // INITIALIZE
         window.addEventListener('load', async function() {
             await loadData();
         });
