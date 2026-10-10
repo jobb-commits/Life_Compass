@@ -97,8 +97,6 @@
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        // Parse a stored YYYY-MM-DD deadline as a LOCAL date (new Date('YYYY-MM-DD')
-        // parses as UTC, which is off by a day in timezones such as Nairobi, UTC+3).
         function parseLocalDate(value) {
             if (!value) return null;
             const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
@@ -210,7 +208,6 @@
             const title = document.getElementById('goalTitle').value.trim();
             const category = document.getElementById('goalCategory').value;
             const description = document.getElementById('goalDescription').value.trim();
-            // <input type="date"> already yields YYYY-MM-DD (or '' when empty)
             const deadline = document.getElementById('goalDeadline').value || null;
 
             if (!title) { showNotification('Please enter a goal title.', 'error'); return; }
@@ -239,6 +236,23 @@
             form.reset();
             showNotification('Goal added');
         });
+
+        function sortGoalsByUrgency(list) {
+            const rank = g => (g.completed ? 2 : (parseLocalDate(g.deadline) ? 0 : 1));
+            return [...list].sort((a, b) => {
+                const ra = rank(a), rb = rank(b);
+                if (ra !== rb) return ra - rb;
+                if (ra === 0) {
+                    const byDeadline = parseLocalDate(a.deadline) - parseLocalDate(b.deadline);
+                    if (byDeadline !== 0) return byDeadline;
+                }
+                if (ra === 2) {
+                    const byDone = new Date(b.completedAt || 0) - new Date(a.completedAt || 0);
+                    if (byDone !== 0) return byDone;
+                }
+                return (a.id || 0) - (b.id || 0); // stable tie-break: creation order
+            });
+        }
 
         function displayGoals() {
             const container = document.getElementById('goalsContainer');
@@ -270,7 +284,7 @@
                 if (categoryGoals.length === 0) {
                     list.innerHTML = '<div class="empty-state"><div>No goals in this category yet</div></div>';
                 } else {
-                    categoryGoals.forEach(goal => list.appendChild(createGoalElement(goal)));
+                    sortGoalsByUrgency(categoryGoals).forEach(goal => list.appendChild(createGoalElement(goal)));
                 }
                 container.appendChild(section);
             });
@@ -346,7 +360,6 @@
             goal.completed = !goal.completed;
             goal.completedAt = goal.completed ? new Date().toISOString() : null;
 
-            // XP is awarded once per goal: un-ticking and re-ticking can't be farmed for points
             const shouldAward = goal.completed && !goal.xpAwarded;
             if (shouldAward) goal.xpAwarded = true;
 
